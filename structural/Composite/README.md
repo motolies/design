@@ -4,6 +4,33 @@
 
 컴포지트 패턴은 객체들을 트리 구조로 구성하여 부분-전체 계층을 표현하는 구조 디자인 패턴입니다. 개별 객체와 객체들의 조합(컴포지트)을 같은 방식으로 다룰 수 있게 해주어, 클라이언트가 단일 객체와 복합 객체를 구별하지 않고 동일한 인터페이스로 사용할 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 개별 객체와 복합 객체를 동일하게 다루는 트리 구조 |
+| **비유** | 파일 시스템 - 파일과 폴더를 동일하게 삭제/복사 가능 |
+| **언제** | 트리 구조가 있고, 개별/그룹을 동일하게 처리하고 싶을 때 |
+| **Spring** | Spring Security의 권한 계층, 메뉴 구조, 조직도 |
+
+### 핵심 구성요소
+```
+Component  → 공통 인터페이스 (operation, add, remove)
+Leaf       → 말단 객체 (자식이 없음, 예: 파일)
+Composite  → 복합 객체 (자식들을 가짐, 예: 폴더)
+```
+
+### 트리 구조 예시
+```
+📂 root (Composite)
+├── 📂 documents (Composite)
+│   ├── 📄 resume.pdf (Leaf)
+│   └── 📄 report.docx (Leaf)
+└── 📄 readme.txt (Leaf)
+
+root.getSize()  // 모든 자식의 크기 합계를 재귀적으로 계산
+```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -40,6 +67,32 @@ classDiagram
     note for Component "공통 인터페이스 정의"
     note for Leaf "말단 객체 (자식이 없음)"
     note for Composite "복합 객체 (자식들을 관리)"
+```
+
+## 동작 흐름 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant Client as 👤 Client
+    participant Root as 📂 Composite (Root)
+    participant Dir as 📂 Composite (Dir)
+    participant File1 as 📄 Leaf (File1)
+    participant File2 as 📄 Leaf (File2)
+
+    Note over Client,File2: 1. 트리 구성
+    Client->>Root: add(Dir)
+    Client->>Root: add(File1)
+    Client->>Dir: add(File2)
+
+    Note over Client,File2: 2. 재귀적 연산 (getSize)
+    Client->>Root: getSize()
+    Root->>Dir: getSize()
+    Dir->>File2: getSize()
+    File2-->>Dir: 100
+    Dir-->>Root: 100
+    Root->>File1: getSize()
+    File1-->>Root: 50
+    Root-->>Client: 150 (합계)
 ```
 
 ## 사용 이유
@@ -92,6 +145,138 @@ class GraphicsEditor {
 - **수학 표현식**: 숫자와 연산자의 트리 구조
 - **메뉴 시스템**: 메뉴와 서브메뉴의 중첩 구조
 - **문서 구조**: 섹션, 단락, 텍스트의 계층 구조
+
+## 초급 예제 - 메뉴 시스템 (5분 이해)
+
+레스토랑 메뉴판을 Composite 패턴으로 구현합니다.
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+// 1. Component - 메뉴 아이템의 공통 인터페이스
+interface MenuComponent {
+    String getName();
+    int getPrice();
+    void print(int depth);
+}
+
+// 2. Leaf - 개별 메뉴 아이템
+class MenuItem implements MenuComponent {
+    private String name;
+    private int price;
+
+    public MenuItem(String name, int price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    @Override
+    public String getName() { return name; }
+
+    @Override
+    public int getPrice() { return price; }
+
+    @Override
+    public void print(int depth) {
+        System.out.println("  ".repeat(depth) + "🍽️ " + name + " - " + price + "원");
+    }
+}
+
+// 3. Composite - 메뉴 카테고리 (하위 메뉴들을 포함)
+class MenuCategory implements MenuComponent {
+    private String name;
+    private List<MenuComponent> children = new ArrayList<>();
+
+    public MenuCategory(String name) {
+        this.name = name;
+    }
+
+    public void add(MenuComponent component) {
+        children.add(component);
+    }
+
+    @Override
+    public String getName() { return name; }
+
+    @Override
+    public int getPrice() {
+        // 모든 하위 메뉴 가격의 합계
+        return children.stream()
+                .mapToInt(MenuComponent::getPrice)
+                .sum();
+    }
+
+    @Override
+    public void print(int depth) {
+        System.out.println("  ".repeat(depth) + "📁 " + name);
+        for (MenuComponent child : children) {
+            child.print(depth + 1);  // 재귀 호출
+        }
+    }
+}
+
+// 4. 사용 예시
+public class MenuDemo {
+    public static void main(String[] args) {
+        // 메뉴 구조 생성
+        MenuCategory root = new MenuCategory("전체 메뉴");
+
+        MenuCategory korean = new MenuCategory("한식");
+        korean.add(new MenuItem("비빔밥", 9000));
+        korean.add(new MenuItem("된장찌개", 8000));
+        korean.add(new MenuItem("김치찌개", 8000));
+
+        MenuCategory western = new MenuCategory("양식");
+        western.add(new MenuItem("파스타", 12000));
+        western.add(new MenuItem("스테이크", 25000));
+
+        MenuCategory pasta = new MenuCategory("파스타 종류");
+        pasta.add(new MenuItem("토마토 파스타", 11000));
+        pasta.add(new MenuItem("크림 파스타", 12000));
+        western.add(pasta);  // 중첩된 카테고리
+
+        root.add(korean);
+        root.add(western);
+
+        // 전체 메뉴 출력 (재귀적으로 처리)
+        System.out.println("=== 레스토랑 메뉴판 ===");
+        root.print(0);
+
+        // 카테고리별 총액 계산 (개별/복합 동일하게 처리)
+        System.out.println("\n=== 카테고리별 총액 ===");
+        System.out.println("한식 전체: " + korean.getPrice() + "원");
+        System.out.println("양식 전체: " + western.getPrice() + "원");
+    }
+}
+```
+
+**실행 결과:**
+```
+=== 레스토랑 메뉴판 ===
+📁 전체 메뉴
+  📁 한식
+    🍽️ 비빔밥 - 9000원
+    🍽️ 된장찌개 - 8000원
+    🍽️ 김치찌개 - 8000원
+  📁 양식
+    🍽️ 파스타 - 12000원
+    🍽️ 스테이크 - 25000원
+    📁 파스타 종류
+      🍽️ 토마토 파스타 - 11000원
+      🍽️ 크림 파스타 - 12000원
+
+=== 카테고리별 총액 ===
+한식 전체: 25000원
+양식 전체: 60000원
+```
+
+### 핵심 포인트
+```
+1. MenuItem(Leaf)과 MenuCategory(Composite) 모두 같은 인터페이스 구현
+2. getPrice()를 호출하면 개별이든 그룹이든 동일하게 동작
+3. 트리 구조를 재귀적으로 탐색 (print, getPrice 등)
+```
 
 ## 실생활 예제 - 파일 시스템 관리
 
@@ -883,6 +1068,335 @@ public class CompositePatternDemo {
 }
 ```
 
+## Spring Boot에서의 Composite 패턴
+
+Spring에서는 **계층적 메뉴 구조**, **조직도**, **권한 계층**에 Composite 패턴이 자주 활용됩니다.
+
+### 1. 조직도 시스템 (실무 예제)
+
+```java
+// Component 인터페이스
+public interface OrganizationComponent {
+    String getName();
+    int getTotalEmployees();
+    long getTotalSalary();
+    List<OrganizationComponent> getSubordinates();
+    void print(int depth);
+}
+
+// Leaf - 개별 직원
+@Entity
+@Getter @Setter
+public class Employee implements OrganizationComponent {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String name;
+    private String position;
+    private long salary;
+
+    @ManyToOne
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @Override
+    public int getTotalEmployees() {
+        return 1;
+    }
+
+    @Override
+    public long getTotalSalary() {
+        return salary;
+    }
+
+    @Override
+    public List<OrganizationComponent> getSubordinates() {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void print(int depth) {
+        System.out.println("  ".repeat(depth) + "👤 " + name + " (" + position + ")");
+    }
+}
+
+// Composite - 부서 (하위 부서와 직원을 포함)
+@Entity
+@Getter @Setter
+public class Department implements OrganizationComponent {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String name;
+
+    @ManyToOne
+    @JoinColumn(name = "parent_id")
+    private Department parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    private List<Department> subDepartments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
+    private List<Employee> employees = new ArrayList<>();
+
+    public void addSubDepartment(Department dept) {
+        subDepartments.add(dept);
+        dept.setParent(this);
+    }
+
+    public void addEmployee(Employee emp) {
+        employees.add(emp);
+        emp.setDepartment(this);
+    }
+
+    @Override
+    public int getTotalEmployees() {
+        int count = employees.size();
+        for (Department subDept : subDepartments) {
+            count += subDept.getTotalEmployees();  // 재귀
+        }
+        return count;
+    }
+
+    @Override
+    public long getTotalSalary() {
+        long total = employees.stream().mapToLong(Employee::getSalary).sum();
+        for (Department subDept : subDepartments) {
+            total += subDept.getTotalSalary();  // 재귀
+        }
+        return total;
+    }
+
+    @Override
+    public List<OrganizationComponent> getSubordinates() {
+        List<OrganizationComponent> result = new ArrayList<>();
+        result.addAll(subDepartments);
+        result.addAll(employees);
+        return result;
+    }
+
+    @Override
+    public void print(int depth) {
+        System.out.println("  ".repeat(depth) + "📂 " + name +
+            " (직원: " + getTotalEmployees() + "명, 인건비: " + getTotalSalary() + "원)");
+        for (OrganizationComponent child : getSubordinates()) {
+            child.print(depth + 1);
+        }
+    }
+}
+```
+
+```java
+// 조직도 서비스
+@Service
+@RequiredArgsConstructor
+public class OrganizationService {
+    private final DepartmentRepository departmentRepository;
+    private final EmployeeRepository employeeRepository;
+
+    public Department getRootDepartment() {
+        return departmentRepository.findByParentIsNull()
+            .orElseThrow(() -> new IllegalStateException("루트 부서가 없습니다"));
+    }
+
+    public int getTotalEmployeeCount() {
+        return getRootDepartment().getTotalEmployees();
+    }
+
+    public long getTotalSalaryCost() {
+        return getRootDepartment().getTotalSalary();
+    }
+
+    public OrganizationDTO getOrganizationTree() {
+        Department root = getRootDepartment();
+        return convertToDTO(root);
+    }
+
+    private OrganizationDTO convertToDTO(OrganizationComponent component) {
+        OrganizationDTO dto = new OrganizationDTO();
+        dto.setName(component.getName());
+        dto.setTotalEmployees(component.getTotalEmployees());
+        dto.setTotalSalary(component.getTotalSalary());
+
+        if (component instanceof Department dept) {
+            dto.setType("DEPARTMENT");
+            dto.setChildren(dept.getSubordinates().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList()));
+        } else {
+            dto.setType("EMPLOYEE");
+            dto.setChildren(Collections.emptyList());
+        }
+
+        return dto;
+    }
+}
+```
+
+### 2. 계층적 메뉴 시스템
+
+```java
+// 메뉴 엔티티 (Self-referencing)
+@Entity
+@Getter @Setter
+public class Menu {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String name;
+    private String url;
+    private String icon;
+    private int displayOrder;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Menu parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    @OrderBy("displayOrder ASC")
+    private List<Menu> children = new ArrayList<>();
+
+    // Composite 패턴 메서드
+    public boolean isLeaf() {
+        return children.isEmpty();
+    }
+
+    public void addChild(Menu menu) {
+        children.add(menu);
+        menu.setParent(this);
+    }
+
+    // 권한 체크 (재귀적으로 처리)
+    public boolean hasAccess(Set<String> userRoles) {
+        // 자신의 권한 체크
+        if (!checkOwnAccess(userRoles)) {
+            return false;
+        }
+        // 부모 메뉴의 권한도 체크 (재귀)
+        if (parent != null) {
+            return parent.hasAccess(userRoles);
+        }
+        return true;
+    }
+
+    private boolean checkOwnAccess(Set<String> userRoles) {
+        // 권한 로직...
+        return true;
+    }
+}
+
+// 메뉴 DTO (계층 구조 유지)
+@Data
+public class MenuDTO {
+    private Long id;
+    private String name;
+    private String url;
+    private String icon;
+    private List<MenuDTO> children;
+
+    public static MenuDTO from(Menu menu) {
+        MenuDTO dto = new MenuDTO();
+        dto.setId(menu.getId());
+        dto.setName(menu.getName());
+        dto.setUrl(menu.getUrl());
+        dto.setIcon(menu.getIcon());
+        dto.setChildren(menu.getChildren().stream()
+            .map(MenuDTO::from)  // 재귀적 변환
+            .collect(Collectors.toList()));
+        return dto;
+    }
+}
+
+// 메뉴 서비스
+@Service
+@RequiredArgsConstructor
+public class MenuService {
+    private final MenuRepository menuRepository;
+
+    @Cacheable("menus")
+    public List<MenuDTO> getMenuTree() {
+        List<Menu> rootMenus = menuRepository.findByParentIsNullOrderByDisplayOrder();
+        return rootMenus.stream()
+            .map(MenuDTO::from)
+            .collect(Collectors.toList());
+    }
+}
+```
+
+### 3. Spring에서 Composite가 사용되는 곳
+
+| Spring 기능 | Composite 패턴 적용 |
+|------------|-------------------|
+| `@RequestMapping` | 부모 클래스의 경로가 자식에게 상속 |
+| `CompositeComponentDefinition` | Bean 정의의 계층 구조 |
+| `CompositeCacheManager` | 여러 CacheManager를 하나로 통합 |
+| `SecurityExpressionRoot` | 권한 표현식의 트리 구조 |
+
+### JPA 자기참조 관계 패턴
+
+```java
+// 카테고리 - 전형적인 Composite 구조
+@Entity
+public class Category {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String name;
+
+    // 부모 참조 (N:1)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    private Category parent;
+
+    // 자식들 참조 (1:N)
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    private List<Category> children = new ArrayList<>();
+
+    // 전체 카테고리 경로 (재귀)
+    public String getFullPath() {
+        if (parent == null) {
+            return name;
+        }
+        return parent.getFullPath() + " > " + name;
+    }
+
+    // 모든 하위 카테고리 가져오기 (재귀)
+    public List<Category> getAllDescendants() {
+        List<Category> result = new ArrayList<>();
+        for (Category child : children) {
+            result.add(child);
+            result.addAll(child.getAllDescendants());
+        }
+        return result;
+    }
+}
+```
+
+### 실무 팁: 무한 재귀 방지
+
+```java
+// DTO 변환 시 깊이 제한
+public CategoryDTO toDTO(int maxDepth) {
+    CategoryDTO dto = new CategoryDTO();
+    dto.setName(this.name);
+
+    if (maxDepth > 0 && !children.isEmpty()) {
+        dto.setChildren(children.stream()
+            .map(c -> c.toDTO(maxDepth - 1))  // 깊이 감소
+            .collect(Collectors.toList()));
+    }
+
+    return dto;
+}
+
+// JSON 직렬화 시 순환 참조 방지
+@JsonManagedReference  // 부모 쪽
+private List<Category> children;
+
+@JsonBackReference     // 자식 쪽
+private Category parent;
+```
+
 ## 장점
 
 - **일관성**: 개별 객체와 복합 객체를 동일한 방식으로 처리할 수 있습니다.
@@ -897,3 +1411,56 @@ public class CompositePatternDemo {
 - **오버헤드**: 단순한 구조에서는 불필요한 복잡성을 추가할 수 있습니다.
 - **디자인 제약**: 모든 자식이 같은 인터페이스를 가져야 하므로 설계에 제약이 생길 수 있습니다.
 - **과도한 일반화**: 서로 다른 종류의 객체를 강제로 같은 방식으로 다루게 될 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Decorator** | 둘 다 재귀적 구조. Decorator는 책임 추가, Composite는 객체 집합 관리 |
+| **Iterator** | Composite 트리를 순회할 때 Iterator 패턴 사용 |
+| **Visitor** | Composite 구조의 각 노드에 연산을 적용할 때 사용 |
+| **Chain of Responsibility** | Composite 구조에서 부모로 요청을 전달할 때 사용 |
+| **Flyweight** | Leaf 노드가 많을 때 Flyweight로 메모리 절약 |
+
+### Composite vs Decorator
+
+```
+Composite:
+├─ 목적: 부분-전체 계층 표현, 개별/그룹 동일 처리
+├─ 구조: 트리 (1:N 관계)
+└─ 예: 파일 시스템, 조직도, 메뉴 구조
+
+Decorator:
+├─ 목적: 객체에 동적으로 책임 추가
+├─ 구조: 선형 체인 (1:1 관계)
+└─ 예: 스트림 래핑, 로깅 추가
+
+// Composite - 여러 자식을 가짐
+class Directory {
+    List<FileComponent> children;  // 1:N
+    void add(FileComponent c) { children.add(c); }
+}
+
+// Decorator - 하나의 객체를 감쌈
+class LoggingDecorator {
+    FileComponent wrapped;  // 1:1
+    void operation() {
+        log(); wrapped.operation();
+    }
+}
+```
+
+### 언제 Composite를 쓸까?
+
+```
+Composite 패턴 적합:
+├─ 트리/계층 구조가 있는 경우
+├─ 개별 객체와 그룹을 동일하게 처리해야 하는 경우
+├─ 재귀적 구조가 필요한 경우
+└─ 예: 파일 시스템, 조직도, 메뉴, GUI 컴포넌트
+
+Composite 부적합:
+├─ 단순한 리스트 구조
+├─ 계층이 고정된 경우 (상속으로 해결)
+└─ Leaf와 Composite의 동작이 완전히 다른 경우
+```

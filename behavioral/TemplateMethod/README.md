@@ -4,6 +4,42 @@
 
 템플릿 메서드 패턴은 알고리즘의 골격(구조)을 상위 클래스에서 정의하고, 일부 단계를 서브클래스에서 구현하도록 하는 행동 디자인 패턴입니다. 이를 통해 알고리즘의 구조를 변경하지 않으면서 특정 단계를 서브클래스에서 재정의할 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 알고리즘의 뼈대는 고정, 세부 단계만 서브클래스에서 구현 |
+| **비유** | 레시피: 요리 순서는 같지만, 재료나 조리법은 요리마다 다름 |
+| **언제** | 여러 클래스가 비슷한 알고리즘을 공유하되, 일부 단계만 다를 때 |
+| **Spring** | `JdbcTemplate`, `RestTemplate` - "~Template" 이름의 클래스들 |
+
+> **💡 데이터를 읽고 처리하고 저장하는 로직이 중복됨...**
+>
+> **❌ Before (중복 코드)**
+> ```java
+> class PDFExporter {
+>     validate(); format(); convert(); save();  // PDF 변환
+> }
+> class ExcelExporter {
+>     validate(); format(); convert(); save();  // Excel 변환
+> }
+> // → validate, format, save가 중복!
+> ```
+>
+> **✅ After (템플릿 메서드 패턴)**
+> ```java
+> abstract class DataExporter {
+>     final void export() {
+>         validate();
+>         format();
+>         convert();    // ← 이것만 서브클래스에서 구현
+>         save();
+>     }
+>     abstract void convert();  // 추상 메서드
+> }
+> // → 공통 로직은 부모에, 다른 부분만 자식에서!
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -37,6 +73,38 @@ classDiagram
     note for ConcreteClassA "추상 메서드를 구체적으로 구현"
     note for ConcreteClassB "훅 메서드를 선택적으로 오버라이드"
 ```
+
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Abstract as AbstractClass<br/>(DataExporter)
+    participant Concrete as ConcreteClass<br/>(PDFExporter)
+
+    Client->>Abstract: templateMethod() 호출
+    Note over Abstract: 알고리즘 골격 실행 시작
+
+    Abstract->>Abstract: step1() - 공통 로직
+    Abstract->>Abstract: step2() - 공통 로직
+
+    Abstract->>Concrete: primitiveOperation()<br/>추상 메서드 호출
+    Note over Concrete: 서브클래스의<br/>구체적 구현 실행
+    Concrete-->>Abstract: 결과 반환
+
+    Abstract->>Abstract: hook() - 선택적 확장
+    Note over Abstract: 기본 구현 또는<br/>오버라이드된 구현
+
+    Abstract->>Abstract: step3() - 공통 로직
+
+    Abstract-->>Client: 완료
+    Note over Client: 클라이언트는<br/>templateMethod()만 호출
+```
+
+**핵심 포인트:**
+- 클라이언트는 `templateMethod()`만 호출
+- 부모 클래스가 전체 흐름을 제어 (Hollywood Principle: "Don't call us, we'll call you")
+- 서브클래스는 특정 단계만 구현
 
 ## 사용 이유
 
@@ -104,6 +172,457 @@ abstract class DataExporter {
 - **선택적 기능**: 필요에 따라 오버라이드할 수 있는 빈 메서드
 - **조건부 실행**: 특정 조건에서만 실행되는 로직
 - **확장 포인트**: 미래 확장을 위한 확장 지점
+
+## 초급 예제 - 5분 만에 이해하기
+
+라면 끓이기로 템플릿 메서드 패턴을 이해해봅시다.
+
+```java
+// 추상 클래스: 라면 끓이기 템플릿
+abstract class RamenRecipe {
+
+    // 템플릿 메서드: final로 선언하여 순서 변경 불가
+    public final void cook() {
+        boilWater();       // 1. 공통: 물 끓이기
+        addNoodles();      // 2. 공통: 면 넣기
+        addSeasoning();    // 3. 다름: 스프/재료 넣기 (추상)
+        wait3Minutes();    // 4. 공통: 3분 대기
+        addTopping();      // 5. 선택: 토핑 (훅)
+        serve();           // 6. 공통: 완성
+    }
+
+    // 공통 단계들
+    private void boilWater() {
+        System.out.println("물 550ml를 끓입니다");
+    }
+
+    private void addNoodles() {
+        System.out.println("면을 넣습니다");
+    }
+
+    private void wait3Minutes() {
+        System.out.println("3분간 끓입니다...");
+    }
+
+    private void serve() {
+        System.out.println("완성! 맛있게 드세요 🍜");
+    }
+
+    // 추상 메서드: 서브클래스에서 반드시 구현
+    protected abstract void addSeasoning();
+
+    // 훅 메서드: 선택적으로 오버라이드
+    protected void addTopping() {
+        // 기본: 아무것도 안 함
+    }
+}
+
+// 구체 클래스 1: 신라면
+class ShinRamen extends RamenRecipe {
+    @Override
+    protected void addSeasoning() {
+        System.out.println("신라면 스프와 건더기 스프를 넣습니다 🌶️");
+    }
+
+    @Override
+    protected void addTopping() {
+        System.out.println("계란과 파를 추가합니다 🥚");
+    }
+}
+
+// 구체 클래스 2: 짜파게티
+class Jjapagetti extends RamenRecipe {
+    @Override
+    protected void addSeasoning() {
+        System.out.println("짜파게티 스프와 올리브유를 넣습니다");
+        System.out.println("물을 버리고 비벼줍니다");
+    }
+    // 토핑은 추가 안 함 (훅 메서드 사용 안 함)
+}
+
+// 사용
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("=== 신라면 끓이기 ===");
+        RamenRecipe shinRamen = new ShinRamen();
+        shinRamen.cook();
+
+        System.out.println("\n=== 짜파게티 끓이기 ===");
+        RamenRecipe jjapagetti = new Jjapagetti();
+        jjapagetti.cook();
+    }
+}
+```
+
+**출력:**
+```
+=== 신라면 끓이기 ===
+물 550ml를 끓입니다
+면을 넣습니다
+신라면 스프와 건더기 스프를 넣습니다 🌶️
+3분간 끓입니다...
+계란과 파를 추가합니다 🥚
+완성! 맛있게 드세요 🍜
+
+=== 짜파게티 끓이기 ===
+물 550ml를 끓입니다
+면을 넣습니다
+짜파게티 스프와 올리브유를 넣습니다
+물을 버리고 비벼줍니다
+3분간 끓입니다...
+완성! 맛있게 드세요 🍜
+```
+
+**핵심 포인트:**
+- `cook()` 메서드가 **템플릿 메서드** - 전체 순서를 정의
+- `final`로 선언하여 서브클래스에서 순서 변경 불가
+- `addSeasoning()`은 **추상 메서드** - 반드시 구현 필요
+- `addTopping()`은 **훅 메서드** - 선택적 구현
+
+---
+
+## Spring Boot 예제
+
+Spring에서 **JdbcTemplate**, **RestTemplate**이 대표적인 템플릿 메서드 패턴입니다. 직접 템플릿 메서드 패턴을 활용한 예제를 만들어봅시다.
+
+### 프로젝트 구조
+```
+src/main/java/com/example/report/
+├── template/
+│   ├── ReportGenerator.java         # 추상 템플릿 클래스
+│   ├── PdfReportGenerator.java      # PDF 구현
+│   ├── ExcelReportGenerator.java    # Excel 구현
+│   └── HtmlReportGenerator.java     # HTML 구현
+├── dto/
+│   ├── ReportData.java
+│   └── ReportResult.java
+├── service/
+│   └── ReportService.java           # 서비스 레이어
+└── controller/
+    └── ReportController.java
+```
+
+### 1. 추상 템플릿 클래스
+
+```java
+@Slf4j
+public abstract class ReportGenerator {
+
+    /**
+     * 템플릿 메서드: 리포트 생성의 전체 흐름을 정의
+     * final로 선언하여 서브클래스에서 변경 불가
+     */
+    public final ReportResult generate(ReportData data) {
+        log.info("📊 리포트 생성 시작: {}", getReportType());
+
+        // 1. 데이터 검증 (공통)
+        validateData(data);
+
+        // 2. 헤더 생성 (공통 + 커스텀)
+        String header = createHeader(data);
+
+        // 3. 본문 생성 (추상 - 서브클래스에서 구현)
+        String body = createBody(data);
+
+        // 4. 푸터 생성 (훅 - 선택적)
+        String footer = createFooter(data);
+
+        // 5. 파일로 저장 (추상 - 서브클래스에서 구현)
+        String filePath = saveToFile(header, body, footer);
+
+        // 6. 후처리 (훅 - 선택적)
+        afterGenerate(filePath);
+
+        log.info("✅ 리포트 생성 완료: {}", filePath);
+        return new ReportResult(true, filePath, getReportType());
+    }
+
+    // === 공통 구현 ===
+    private void validateData(ReportData data) {
+        if (data == null || data.getItems().isEmpty()) {
+            throw new IllegalArgumentException("리포트 데이터가 비어있습니다");
+        }
+        log.info("✓ 데이터 검증 완료 ({}건)", data.getItems().size());
+    }
+
+    protected String createHeader(ReportData data) {
+        return String.format("리포트: %s | 생성일: %s | 작성자: %s",
+                data.getTitle(),
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")),
+                data.getAuthor());
+    }
+
+    // === 추상 메서드 (서브클래스에서 반드시 구현) ===
+    protected abstract String getReportType();
+    protected abstract String createBody(ReportData data);
+    protected abstract String saveToFile(String header, String body, String footer);
+
+    // === 훅 메서드 (선택적 오버라이드) ===
+    protected String createFooter(ReportData data) {
+        return ""; // 기본: 푸터 없음
+    }
+
+    protected void afterGenerate(String filePath) {
+        // 기본: 후처리 없음
+    }
+}
+```
+
+### 2. 구체 구현 클래스들
+
+```java
+@Component("pdf")
+@Slf4j
+public class PdfReportGenerator extends ReportGenerator {
+
+    @Override
+    protected String getReportType() {
+        return "PDF";
+    }
+
+    @Override
+    protected String createBody(ReportData data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<pdf-content>\n");
+        for (ReportData.Item item : data.getItems()) {
+            sb.append(String.format("  [%s] %s: %,d원\n",
+                    item.getCategory(), item.getName(), item.getAmount()));
+        }
+        sb.append("</pdf-content>");
+        log.info("📄 PDF 본문 생성 완료");
+        return sb.toString();
+    }
+
+    @Override
+    protected String saveToFile(String header, String body, String footer) {
+        String fileName = "report_" + System.currentTimeMillis() + ".pdf";
+        log.info("💾 PDF 파일 저장: {}", fileName);
+        // 실제로는 Apache PDFBox 등을 사용하여 PDF 생성
+        return "/reports/" + fileName;
+    }
+
+    @Override
+    protected String createFooter(ReportData data) {
+        int total = data.getItems().stream()
+                .mapToInt(ReportData.Item::getAmount)
+                .sum();
+        return String.format("총액: %,d원 | 페이지: 1/1", total);
+    }
+}
+
+@Component("excel")
+@Slf4j
+public class ExcelReportGenerator extends ReportGenerator {
+
+    @Override
+    protected String getReportType() {
+        return "EXCEL";
+    }
+
+    @Override
+    protected String createBody(ReportData data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("카테고리\t이름\t금액\n");
+        sb.append("-".repeat(40)).append("\n");
+        for (ReportData.Item item : data.getItems()) {
+            sb.append(String.format("%s\t%s\t%,d\n",
+                    item.getCategory(), item.getName(), item.getAmount()));
+        }
+        log.info("📊 Excel 본문 생성 완료");
+        return sb.toString();
+    }
+
+    @Override
+    protected String saveToFile(String header, String body, String footer) {
+        String fileName = "report_" + System.currentTimeMillis() + ".xlsx";
+        log.info("💾 Excel 파일 저장: {}", fileName);
+        // 실제로는 Apache POI 등을 사용하여 Excel 생성
+        return "/reports/" + fileName;
+    }
+
+    @Override
+    protected void afterGenerate(String filePath) {
+        log.info("📧 Excel 리포트 생성 알림 발송");
+        // 이메일 알림 등 후처리
+    }
+}
+
+@Component("html")
+@Slf4j
+public class HtmlReportGenerator extends ReportGenerator {
+
+    @Override
+    protected String getReportType() {
+        return "HTML";
+    }
+
+    @Override
+    protected String createBody(ReportData data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("<table border='1'>\n");
+        sb.append("<tr><th>카테고리</th><th>이름</th><th>금액</th></tr>\n");
+        for (ReportData.Item item : data.getItems()) {
+            sb.append(String.format("<tr><td>%s</td><td>%s</td><td>%,d원</td></tr>\n",
+                    item.getCategory(), item.getName(), item.getAmount()));
+        }
+        sb.append("</table>");
+        log.info("🌐 HTML 본문 생성 완료");
+        return sb.toString();
+    }
+
+    @Override
+    protected String saveToFile(String header, String body, String footer) {
+        String fileName = "report_" + System.currentTimeMillis() + ".html";
+        log.info("💾 HTML 파일 저장: {}", fileName);
+        return "/reports/" + fileName;
+    }
+}
+```
+
+### 3. DTO 클래스
+
+```java
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+public class ReportData {
+    private String title;
+    private String author;
+    private List<Item> items;
+
+    @Getter
+    @AllArgsConstructor
+    public static class Item {
+        private String category;
+        private String name;
+        private int amount;
+    }
+}
+
+@Getter
+@AllArgsConstructor
+public class ReportResult {
+    private boolean success;
+    private String filePath;
+    private String reportType;
+}
+```
+
+### 4. 서비스 및 컨트롤러
+
+```java
+@Service
+@RequiredArgsConstructor
+public class ReportService {
+
+    // Spring이 모든 ReportGenerator 구현체를 Map으로 주입
+    private final Map<String, ReportGenerator> generators;
+
+    public ReportResult generateReport(String type, ReportData data) {
+        ReportGenerator generator = generators.get(type.toLowerCase());
+        if (generator == null) {
+            throw new IllegalArgumentException("지원하지 않는 리포트 타입: " + type);
+        }
+        return generator.generate(data);  // 템플릿 메서드 호출
+    }
+
+    public List<String> getSupportedTypes() {
+        return new ArrayList<>(generators.keySet());
+    }
+}
+
+@RestController
+@RequestMapping("/api/reports")
+@RequiredArgsConstructor
+public class ReportController {
+
+    private final ReportService reportService;
+
+    @PostMapping("/{type}")
+    public ResponseEntity<ReportResult> generateReport(
+            @PathVariable String type,
+            @RequestBody ReportData data) {
+
+        ReportResult result = reportService.generateReport(type, data);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/types")
+    public ResponseEntity<List<String>> getSupportedTypes() {
+        return ResponseEntity.ok(reportService.getSupportedTypes());
+    }
+}
+```
+
+### 사용 예시
+
+```bash
+# PDF 리포트 생성
+curl -X POST http://localhost:8080/api/reports/pdf \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "2024년 1월 매출 리포트",
+    "author": "홍길동",
+    "items": [
+      {"category": "전자제품", "name": "노트북", "amount": 1500000},
+      {"category": "전자제품", "name": "모니터", "amount": 350000},
+      {"category": "가구", "name": "의자", "amount": 200000}
+    ]
+  }'
+
+# Excel 리포트 생성
+curl -X POST http://localhost:8080/api/reports/excel \
+  -H "Content-Type: application/json" \
+  -d '...(동일한 데이터)...'
+```
+
+**출력 로그:**
+```
+📊 리포트 생성 시작: PDF
+✓ 데이터 검증 완료 (3건)
+📄 PDF 본문 생성 완료
+💾 PDF 파일 저장: report_1704123456789.pdf
+✅ 리포트 생성 완료: /reports/report_1704123456789.pdf
+```
+
+### Spring의 Template 클래스들
+
+Spring Framework에서 제공하는 대표적인 템플릿 메서드 패턴 활용:
+
+```java
+// JdbcTemplate - SQL 실행의 공통 로직(연결, 예외처리, 자원해제)을 템플릿화
+@Repository
+public class UserRepository {
+    private final JdbcTemplate jdbcTemplate;
+
+    public List<User> findAll() {
+        // 우리는 SQL과 매핑 로직만 제공
+        // 연결, 예외처리, 자원해제는 JdbcTemplate이 처리
+        return jdbcTemplate.query(
+            "SELECT * FROM users",
+            (rs, rowNum) -> new User(rs.getLong("id"), rs.getString("name"))
+        );
+    }
+}
+
+// RestTemplate - HTTP 요청의 공통 로직을 템플릿화
+@Service
+public class ExternalApiService {
+    private final RestTemplate restTemplate;
+
+    public UserDto getUser(Long id) {
+        // 우리는 URL과 응답 타입만 제공
+        // HTTP 연결, 직렬화/역직렬화, 예외처리는 RestTemplate이 처리
+        return restTemplate.getForObject(
+            "https://api.example.com/users/{id}",
+            UserDto.class,
+            id
+        );
+    }
+}
+```
+
+---
 
 ## 실생활 예제 - 카페 음료 제조 시스템
 
@@ -653,3 +1172,82 @@ public class Client {
 - **클래스 수 증가**: 각기 다른 구현에 대해 서브클래스를 만들어야 하므로 클래스의 수가 늘어날 수 있습니다.
 - **상속 의존성**: 상속을 기반으로 하므로 컴포지션보다 결합도가 높습니다.
 - **복잡성 증가**: Hook 메서드가 많아지면 전체 구조를 이해하기 어려워질 수 있습니다.
+
+## 관련 패턴
+
+### Template Method vs Strategy 비교
+
+| 구분 | Template Method | Strategy |
+|------|-----------------|----------|
+| **관계** | 상속 (is-a) | 구성 (has-a) |
+| **변경 범위** | 알고리즘의 일부 단계 | 전체 알고리즘 |
+| **결정 시점** | 컴파일 타임 | 런타임 |
+| **유연성** | 덜 유연 (상속 고정) | 더 유연 (교체 가능) |
+| **용도** | 골격은 같고 일부만 다를 때 | 전체 로직이 다를 때 |
+
+```java
+// Template Method: 상속으로 일부만 변경
+abstract class DataExporter {
+    public final void export(Data data) {
+        validate(data);
+        format(data);
+        convert(data);  // 이것만 서브클래스에서 구현
+        save(data);
+    }
+    protected abstract void convert(Data data);
+}
+class PdfExporter extends DataExporter {
+    protected void convert(Data data) { /* PDF 변환 */ }
+}
+
+// Strategy: 구성으로 전체 교체
+interface ExportStrategy {
+    void export(Data data);  // 전체 로직이 다름
+}
+class PdfStrategy implements ExportStrategy {
+    public void export(Data data) { /* PDF 전체 로직 */ }
+}
+class ExcelStrategy implements ExportStrategy {
+    public void export(Data data) { /* Excel 전체 로직 */ }
+}
+```
+
+### 함께 자주 사용되는 패턴
+
+| 패턴 | 조합 이유 | 예시 |
+|------|----------|------|
+| **Factory Method** | 템플릿 내에서 객체 생성 위임 | 템플릿 메서드에서 `createProduct()` 호출 |
+| **Strategy** | 일부 단계를 전략 객체로 위임 | 템플릿 + 전략 조합으로 유연성 증가 |
+| **Hook + Observer** | 훅 메서드에서 이벤트 발행 | `afterSave()` 훅에서 이벤트 발생 |
+
+### 언제 어떤 패턴을 선택할까?
+
+```java
+// 알고리즘의 "일부"만 다르다면 → Template Method
+abstract class OrderProcessor {
+    public final void process(Order order) {
+        validateOrder(order);      // 공통
+        calculatePrice(order);     // 공통
+        applyDiscount(order);      // 다름 (추상)
+        saveOrder(order);          // 공통
+    }
+    protected abstract void applyDiscount(Order order);
+}
+
+// 알고리즘 "전체"가 다르다면 → Strategy
+interface PaymentStrategy {
+    PaymentResult pay(int amount);  // 완전히 다른 로직
+}
+class CardPayment implements PaymentStrategy { ... }
+class BankTransfer implements PaymentStrategy { ... }
+```
+
+### 실무 선택 가이드
+
+| 상황 | 적합한 패턴 |
+|------|------------|
+| 여러 클래스가 동일한 순서로 실행되지만 일부 단계만 다름 | **Template Method** |
+| 런타임에 알고리즘을 교체해야 함 | **Strategy** |
+| Spring의 JdbcTemplate 같은 프레임워크 제공 | **Template Method** |
+| if-else로 분기되는 전체 로직 | **Strategy** |
+| 알고리즘 흐름이 고정되어야 하는 경우 | **Template Method** (final 메서드)

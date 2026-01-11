@@ -4,6 +4,29 @@
 
 싱글턴 패턴은 특정 클래스의 인스턴스가 오직 하나만 생성되도록 보장하고, 그 인스턴스에 대한 전역적인 접근점을 제공하는 생성 디자인 패턴입니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 클래스의 인스턴스를 오직 하나만 생성 |
+| **비유** | 회사의 CEO는 한 명, 국가의 대통령은 한 명 |
+| **언제** | DB 커넥션, 설정 관리, 로거 등 하나만 있어야 할 때 |
+| **Spring** | `@Component`가 기본적으로 싱글톤 (별도 구현 불필요) |
+
+> **💡 인스턴스가 하나만 필요할 때...**
+>
+> **❌ Before (매번 새로 생성)**
+> ```java
+> new DatabaseConnection()  // → 연결 100개 생성됨!
+> new DatabaseConnection()  // → 리소스 낭비!
+> ```
+>
+> **✅ After (싱글톤 패턴)**
+> ```java
+> DatabaseConnection.getInstance()  // → 항상 같은 1개!
+> DatabaseConnection.getInstance()  // → 동일 인스턴스!
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -16,6 +39,27 @@ classDiagram
     }
 
     note for Singleton "1. private static 인스턴스 변수\n2. private 생성자\n3. public static 접근 메서드"
+```
+
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client1 as 클라이언트 A
+    participant Client2 as 클라이언트 B
+    participant Singleton as Singleton
+
+    Note over Singleton: instance = null
+
+    Client1->>Singleton: getInstance()
+    Note over Singleton: 최초 호출: 인스턴스 생성
+    Singleton-->>Client1: instance 반환
+
+    Client2->>Singleton: getInstance()
+    Note over Singleton: 이미 생성됨: 기존 인스턴스 반환
+    Singleton-->>Client2: 동일한 instance 반환
+
+    Note over Client1,Client2: Client1과 Client2는<br/>같은 인스턴스를 공유
 ```
 
 ## 사용 이유
@@ -46,6 +90,69 @@ PrinterManager printer2 = new PrinterManager(); // 충돌 위험!
 // 좋은 예: 싱글톤으로 안전한 하드웨어 접근
 PrinterManager printer = PrinterManager.getInstance();
 ```
+
+## 초급 예제 - 5분 만에 이해하기
+
+가장 간단한 싱글톤: 애플리케이션 설정 관리
+
+```java
+public class AppConfig {
+
+    // 1. 유일한 인스턴스를 저장할 변수 (private static)
+    private static AppConfig instance;
+
+    // 2. 설정 데이터
+    private String appName = "MyApp";
+    private String version = "1.0.0";
+
+    // 3. 외부에서 new로 생성 못하게 private 생성자
+    private AppConfig() {
+        System.out.println("AppConfig 인스턴스 생성됨");
+    }
+
+    // 4. 인스턴스 접근 메서드 (public static)
+    public static AppConfig getInstance() {
+        if (instance == null) {
+            instance = new AppConfig();
+        }
+        return instance;
+    }
+
+    // 5. 설정 조회
+    public String getAppName() { return appName; }
+    public String getVersion() { return version; }
+}
+
+// 사용
+public class Main {
+    public static void main(String[] args) {
+        // 첫 번째 호출 - 인스턴스 생성됨
+        AppConfig config1 = AppConfig.getInstance();
+        System.out.println(config1.getAppName());  // MyApp
+
+        // 두 번째 호출 - 기존 인스턴스 반환
+        AppConfig config2 = AppConfig.getInstance();
+
+        // 같은 인스턴스인지 확인
+        System.out.println(config1 == config2);  // true
+    }
+}
+```
+
+**출력:**
+```
+AppConfig 인스턴스 생성됨
+MyApp
+true
+```
+
+**핵심 포인트:**
+- `private static` 변수로 인스턴스 저장
+- `private` 생성자로 외부 생성 차단
+- `public static getInstance()`로 유일한 접근점 제공
+- 어디서 호출해도 **같은 인스턴스** 반환
+
+---
 
 ## 다양한 구현 방식
 
@@ -380,52 +487,158 @@ public class GameApplication {
 현재 점수: 8800
 ```
 
-## Spring에서의 싱글톤
+## Spring Boot 예제
 
-Spring Framework에서는 기본적으로 모든 Bean이 싱글톤 스코프로 관리됩니다.
+**Spring에서는 직접 싱글톤 패턴을 구현할 필요가 없습니다!**
+`@Component`, `@Service`, `@Repository` 등은 기본적으로 싱글톤입니다.
+
+### 프로젝트 구조
+```
+src/main/java/com/example/config/
+├── AppConfigService.java       # 설정 관리 서비스
+├── DatabaseConfig.java         # DB 설정
+└── CacheManager.java           # 캐시 관리자
+```
+
+### 1. 싱글톤 서비스 (Spring 방식)
 
 ```java
-@Configuration
-public class AppConfig {
+@Service  // 자동으로 싱글톤!
+@Slf4j
+public class AppConfigService {
 
-    @Bean
-    @Scope("singleton") // 기본값이므로 생략 가능
-    public GameConfigManager gameConfigManager() {
-        return new GameConfigManager();
+    private final Map<String, String> settings = new ConcurrentHashMap<>();
+
+    @PostConstruct  // 빈 생성 후 초기화
+    public void init() {
+        settings.put("app.name", "MyApplication");
+        settings.put("app.version", "1.0.0");
+        settings.put("app.timezone", "Asia/Seoul");
+        log.info("AppConfigService 초기화 완료");
+    }
+
+    public String getSetting(String key) {
+        return settings.get(key);
+    }
+
+    public void setSetting(String key, String value) {
+        settings.put(key, value);
+        log.info("설정 변경: {} = {}", key, value);
+    }
+
+    public Map<String, String> getAllSettings() {
+        return new HashMap<>(settings);
+    }
+}
+```
+
+### 2. 여러 곳에서 같은 인스턴스 사용
+
+```java
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final AppConfigService configService;  // 싱글톤 주입
+
+    public String getAppInfo() {
+        return configService.getSetting("app.name") + " v"
+             + configService.getSetting("app.version");
     }
 }
 
 @Service
-public class GameService {
+@RequiredArgsConstructor
+public class OrderService {
 
-    @Autowired
-    private GameConfigManager configManager; // Spring이 싱글톤으로 주입
+    private final AppConfigService configService;  // 같은 인스턴스!
 
-    public void startGame() {
-        configManager.resetGame();
-        configManager.displayCurrentSettings();
+    public String getTimezone() {
+        return configService.getSetting("app.timezone");
     }
 }
+```
 
+### 3. 컨트롤러
+
+```java
 @RestController
-public class GameController {
+@RequestMapping("/api/config")
+@RequiredArgsConstructor
+public class ConfigController {
+
+    private final AppConfigService configService;
+
+    @GetMapping
+    public ResponseEntity<Map<String, String>> getAllConfig() {
+        return ResponseEntity.ok(configService.getAllSettings());
+    }
+
+    @GetMapping("/{key}")
+    public ResponseEntity<String> getConfig(@PathVariable String key) {
+        String value = configService.getSetting(key);
+        if (value == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(value);
+    }
+
+    @PutMapping("/{key}")
+    public ResponseEntity<Void> updateConfig(
+            @PathVariable String key,
+            @RequestBody String value) {
+        configService.setSetting(key, value);
+        return ResponseEntity.ok().build();
+    }
+}
+```
+
+### 4. 싱글톤 확인 테스트
+
+```java
+@SpringBootTest
+class SingletonTest {
 
     @Autowired
-    private GameConfigManager configManager; // 같은 인스턴스가 주입됨
+    private AppConfigService config1;
 
-    @PostMapping("/settings/volume")
-    public ResponseEntity<String> updateVolume(@RequestParam int volume) {
-        configManager.setSoundVolume(volume);
-        return ResponseEntity.ok("Volume updated");
+    @Autowired
+    private AppConfigService config2;
+
+    @Test
+    void 싱글톤_확인() {
+        // 두 변수가 같은 인스턴스를 참조
+        assertThat(config1).isSameAs(config2);
+
+        // 한 곳에서 변경하면 다른 곳에서도 반영됨
+        config1.setSetting("test", "value");
+        assertThat(config2.getSetting("test")).isEqualTo("value");
+    }
+}
+```
+
+### Prototype 스코프가 필요할 때
+
+매번 새 인스턴스가 필요하면 `@Scope("prototype")` 사용:
+
+```java
+@Component
+@Scope("prototype")  // 요청마다 새 인스턴스 생성
+public class RequestContext {
+    private final String requestId = UUID.randomUUID().toString();
+
+    public String getRequestId() {
+        return requestId;
     }
 }
 ```
 
 **Spring 싱글톤의 장점:**
-- **의존성 주입**: `@Autowired`로 자동 주입
-- **라이프사이클 관리**: Spring이 생성/소멸 관리
-- **AOP 지원**: 횡단 관심사 처리 가능
+- **별도 구현 불필요**: `@Service`, `@Component`만으로 싱글톤
+- **스레드 안전**: Spring 컨테이너가 관리
+- **의존성 주입**: `@Autowired`, 생성자 주입 지원
 - **테스트 용이**: `@MockBean`으로 테스트 시 Mock 객체 주입 가능
+- **라이프사이클 관리**: `@PostConstruct`, `@PreDestroy` 지원
 
 ## 기본 예제 코드 (Java)
 
@@ -463,3 +676,39 @@ public class Singleton {
 - **SOLID 원칙 위배**: 단일 책임 원칙(SRP)과 개방-폐쇄 원칙(OCP)을 위배할 가능성이 있습니다.
 - **전역 상태**: 전역 상태로 인한 예상치 못한 부작용이 발생할 수 있습니다.
 - **상속의 어려움**: 싱글톤 클래스는 상속이 어렵고, 인터페이스 구현도 제약이 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Factory Method** | Factory를 싱글톤으로 만들어 객체 생성을 관리 |
+| **Abstract Factory** | Abstract Factory도 보통 싱글톤으로 구현 |
+| **Builder** | Builder를 반환하는 메서드를 싱글톤에서 제공 가능 |
+| **Prototype** | Prototype은 싱글톤의 반대 - 매번 새 객체 복제 |
+
+### 싱글톤 vs 정적(Static) 클래스
+
+```java
+// Static 클래스 - 상태 없는 유틸리티에 적합
+public class StringUtils {
+    public static boolean isEmpty(String s) {
+        return s == null || s.isEmpty();
+    }
+}
+
+// Singleton - 상태를 가지거나 인터페이스 구현이 필요할 때
+public class DatabaseConnection {
+    private static DatabaseConnection instance;
+    private Connection connection;  // 상태 보유
+
+    public static DatabaseConnection getInstance() { ... }
+}
+```
+
+| 비교 | Static 클래스 | Singleton |
+|------|--------------|-----------|
+| 상태 보유 | ❌ 불가능 | ✅ 가능 |
+| 인터페이스 구현 | ❌ 불가능 | ✅ 가능 |
+| 지연 초기화 | ❌ 불가능 | ✅ 가능 |
+| 의존성 주입 | ❌ 어려움 | ✅ 쉬움 |
+| 테스트 | ❌ 어려움 | ✅ Mock 가능 |

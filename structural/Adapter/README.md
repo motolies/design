@@ -4,6 +4,27 @@
 
 어댑터 패턴은 한 클래스의 인터페이스를 클라이언트가 기대하는 다른 인터페이스로 변환하는 구조 디자인 패턴입니다. 어댑터를 사용하면 호환되지 않는 인터페이스를 가진 클래스들이 함께 작동할 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 호환되지 않는 인터페이스를 변환하여 함께 동작하게 |
+| **비유** | 220V 콘센트에 110V 기기를 연결하는 전압 변환기 |
+| **언제** | 레거시 시스템 통합, 외부 API 연동, 라이브러리 교체 시 |
+| **Spring** | 외부 API 래퍼 서비스, 레거시 시스템 연동 계층 |
+
+> **💡 외부 결제 API가 우리 시스템과 호환되지 않을 때...**
+>
+> ```
+> 우리 시스템         어댑터              외부 API
+> ┌──────────┐      ┌──────────┐      ┌──────────┐
+> │ pay()    │ ───▶ │ 변환      │ ───▶ │ charge() │
+> └──────────┘      └──────────┘      └──────────┘
+> ```
+>
+> **❌ Before**: 외부 API 형식에 맞춰 코드 전체 수정
+> **✅ After**: 어댑터가 `pay()` → `charge()` 변환 처리
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -33,6 +54,24 @@ classDiagram
     note for Target "클라이언트가 기대하는 인터페이스"
     note for Adaptee "기존 클래스 (호환되지 않는 인터페이스)"
     note for Adapter "인터페이스를 변환하는 어댑터"
+```
+
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Adapter as Adapter<br/>(PaymentAdapter)
+    participant Adaptee as Adaptee<br/>(외부 결제 API)
+
+    Note over Client,Adaptee: 클라이언트는 Adapter만 알면 됨
+
+    Client->>Adapter: pay(amount)
+    Note over Adapter: 인터페이스 변환
+    Adapter->>Adaptee: charge(convertedData)
+    Adaptee-->>Adapter: 외부 API 응답
+    Note over Adapter: 응답 형식 변환
+    Adapter-->>Client: PaymentResult
 ```
 
 ## 사용 이유
@@ -85,6 +124,326 @@ class XMLAdapter implements DataAdapter {
 - **마이크로서비스**: 서로 다른 서비스 간의 통신 인터페이스 통일
 - **데이터베이스 추상화**: 다양한 DB 벤더의 API를 통일된 인터페이스로 제공
 - **파일 시스템**: 로컬, 클라우드, FTP 등 다양한 저장소의 통일된 접근
+
+## 초급 예제 - 5분 만에 이해하기
+
+외부 라이브러리의 인터페이스가 우리 시스템과 다를 때 어댑터로 해결합니다.
+
+```java
+// 외부 라이브러리 (변경 불가능한 레거시 코드)
+class LegacyPrinter {
+    public void printDocument(String content) {
+        System.out.println("레거시 프린터 출력: " + content);
+    }
+}
+
+// 우리 시스템이 원하는 인터페이스
+interface ModernPrinter {
+    void print(String message);
+}
+
+// 어댑터: LegacyPrinter를 ModernPrinter처럼 사용할 수 있게 변환
+class PrinterAdapter implements ModernPrinter {
+    private LegacyPrinter legacyPrinter;
+
+    public PrinterAdapter(LegacyPrinter legacyPrinter) {
+        this.legacyPrinter = legacyPrinter;
+    }
+
+    @Override
+    public void print(String message) {
+        // 우리 인터페이스(print) → 레거시 인터페이스(printDocument)로 변환
+        legacyPrinter.printDocument(message);
+    }
+}
+
+// 사용
+public class Main {
+    public static void main(String[] args) {
+        // 레거시 프린터를 어댑터로 감싸서 사용
+        LegacyPrinter legacy = new LegacyPrinter();
+        ModernPrinter printer = new PrinterAdapter(legacy);
+
+        // 우리 시스템은 ModernPrinter 인터페이스만 알면 됨
+        printer.print("안녕하세요!");  // 레거시 프린터 출력: 안녕하세요!
+    }
+}
+```
+
+**핵심 포인트:**
+- `LegacyPrinter`는 `printDocument()` 메서드를 가짐
+- 우리 시스템은 `print()` 메서드를 기대함
+- `PrinterAdapter`가 `print()` → `printDocument()` 변환
+- 레거시 코드 수정 없이 우리 시스템에 통합 완료!
+
+---
+
+## Spring Boot 예제
+
+실무에서 외부 결제 API를 우리 시스템에 통합하는 예제입니다.
+
+### 프로젝트 구조
+```
+src/main/java/com/example/payment/
+├── domain/
+│   └── PaymentResult.java
+├── port/
+│   └── PaymentPort.java          # 우리 시스템의 인터페이스
+├── external/
+│   ├── toss/
+│   │   ├── TossPayClient.java    # 외부 토스 API (Adaptee)
+│   │   └── TossPayAdapter.java   # 토스 어댑터
+│   └── kakao/
+│       ├── KakaoPayClient.java   # 외부 카카오 API (Adaptee)
+│       └── KakaoPayAdapter.java  # 카카오 어댑터
+├── service/
+│   └── PaymentService.java
+└── controller/
+    └── PaymentController.java
+```
+
+### 1. 우리 시스템의 인터페이스 (Port)
+
+```java
+// 우리 시스템이 원하는 인터페이스
+public interface PaymentPort {
+    PaymentResult pay(String orderId, int amount, String customerName);
+    String getProviderName();
+}
+
+@Getter
+@AllArgsConstructor
+public class PaymentResult {
+    private boolean success;
+    private String transactionId;
+    private String message;
+    private LocalDateTime paidAt;
+
+    public static PaymentResult success(String txId, String message) {
+        return new PaymentResult(true, txId, message, LocalDateTime.now());
+    }
+
+    public static PaymentResult fail(String message) {
+        return new PaymentResult(false, null, message, null);
+    }
+}
+```
+
+### 2. 외부 API 클라이언트 (Adaptee) - 변경 불가
+
+```java
+// 토스페이 API 클라이언트 (외부 SDK 또는 HTTP 클라이언트)
+@Component
+public class TossPayClient {
+
+    // 토스 고유의 API 형식
+    public TossPayResponse requestPayment(TossPayRequest request) {
+        // 실제로는 HTTP 호출
+        log.info("토스페이 API 호출: {}", request);
+        return new TossPayResponse(
+            "toss_" + UUID.randomUUID().toString().substring(0, 8),
+            "DONE",
+            request.getAmount()
+        );
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class TossPayRequest {
+        private String orderNo;       // 토스 고유 필드명
+        private int amount;
+        private String buyerName;     // 토스 고유 필드명
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class TossPayResponse {
+        private String paymentKey;    // 토스 고유 필드명
+        private String status;
+        private int totalAmount;      // 토스 고유 필드명
+    }
+}
+
+// 카카오페이 API 클라이언트 (외부 SDK)
+@Component
+public class KakaoPayClient {
+
+    // 카카오 고유의 API 형식
+    public KakaoPayResult charge(KakaoPayParam param) {
+        log.info("카카오페이 API 호출: {}", param);
+        return new KakaoPayResult(
+            "kakao_" + System.currentTimeMillis(),
+            "SUCCESS"
+        );
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class KakaoPayParam {
+        private String partnerOrderId;   // 카카오 고유 필드명
+        private int totalAmount;         // 카카오 고유 필드명
+        private String partnerUserId;    // 카카오 고유 필드명
+    }
+
+    @Getter
+    @AllArgsConstructor
+    public static class KakaoPayResult {
+        private String tid;              // 카카오 고유 필드명
+        private String resultCode;       // 카카오 고유 필드명
+    }
+}
+```
+
+### 3. 어댑터 구현
+
+```java
+@Component("toss")
+@RequiredArgsConstructor
+public class TossPayAdapter implements PaymentPort {
+
+    private final TossPayClient tossPayClient;
+
+    @Override
+    public PaymentResult pay(String orderId, int amount, String customerName) {
+        // 우리 형식 → 토스 형식으로 변환
+        TossPayClient.TossPayRequest request = new TossPayClient.TossPayRequest(
+            orderId,        // orderId → orderNo
+            amount,         // amount → amount (동일)
+            customerName    // customerName → buyerName
+        );
+
+        // 토스 API 호출
+        TossPayClient.TossPayResponse response = tossPayClient.requestPayment(request);
+
+        // 토스 형식 → 우리 형식으로 변환
+        if ("DONE".equals(response.getStatus())) {
+            return PaymentResult.success(
+                response.getPaymentKey(),  // paymentKey → transactionId
+                "토스페이 결제 완료"
+            );
+        }
+        return PaymentResult.fail("토스페이 결제 실패");
+    }
+
+    @Override
+    public String getProviderName() {
+        return "토스페이";
+    }
+}
+
+@Component("kakao")
+@RequiredArgsConstructor
+public class KakaoPayAdapter implements PaymentPort {
+
+    private final KakaoPayClient kakaoPayClient;
+
+    @Override
+    public PaymentResult pay(String orderId, int amount, String customerName) {
+        // 우리 형식 → 카카오 형식으로 변환
+        KakaoPayClient.KakaoPayParam param = new KakaoPayClient.KakaoPayParam(
+            orderId,        // orderId → partnerOrderId
+            amount,         // amount → totalAmount
+            customerName    // customerName → partnerUserId
+        );
+
+        // 카카오 API 호출
+        KakaoPayClient.KakaoPayResult result = kakaoPayClient.charge(param);
+
+        // 카카오 형식 → 우리 형식으로 변환
+        if ("SUCCESS".equals(result.getResultCode())) {
+            return PaymentResult.success(
+                result.getTid(),  // tid → transactionId
+                "카카오페이 결제 완료"
+            );
+        }
+        return PaymentResult.fail("카카오페이 결제 실패");
+    }
+
+    @Override
+    public String getProviderName() {
+        return "카카오페이";
+    }
+}
+```
+
+### 4. 서비스 & 컨트롤러
+
+```java
+@Service
+@RequiredArgsConstructor
+public class PaymentService {
+
+    // Spring이 모든 PaymentPort 구현체를 Map으로 주입
+    private final Map<String, PaymentPort> paymentPorts;
+
+    public PaymentResult processPayment(String provider, String orderId,
+                                        int amount, String customerName) {
+        PaymentPort port = paymentPorts.get(provider);
+        if (port == null) {
+            return PaymentResult.fail("지원하지 않는 결제 수단: " + provider);
+        }
+
+        log.info("{} 결제 시작 - 주문: {}, 금액: {}", port.getProviderName(), orderId, amount);
+        return port.pay(orderId, amount, customerName);
+    }
+}
+
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    @PostMapping("/{provider}")
+    public ResponseEntity<PaymentResult> pay(
+            @PathVariable String provider,
+            @RequestBody PaymentRequest request) {
+
+        PaymentResult result = paymentService.processPayment(
+            provider,
+            request.getOrderId(),
+            request.getAmount(),
+            request.getCustomerName()
+        );
+        return ResponseEntity.ok(result);
+    }
+}
+```
+
+### 사용 예시
+
+```bash
+# 토스페이 결제
+curl -X POST http://localhost:8080/api/payments/toss \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "ORDER-001", "amount": 50000, "customerName": "홍길동"}'
+
+# 카카오페이 결제
+curl -X POST http://localhost:8080/api/payments/kakao \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "ORDER-002", "amount": 30000, "customerName": "김철수"}'
+```
+
+### 새 결제 수단 추가하기 (네이버페이)
+
+```java
+// 1. 외부 API 클라이언트
+@Component
+public class NaverPayClient {
+    public NaverPayResponse purchase(NaverPayParam param) { ... }
+}
+
+// 2. 어댑터만 추가
+@Component("naver")
+public class NaverPayAdapter implements PaymentPort {
+    // 우리 인터페이스 → 네이버 API 형식 변환
+}
+```
+
+기존 코드 수정 없이 바로 `/api/payments/naver` 사용 가능!
+
+---
 
 ## 실생활 예제 - 통합 결제 시스템
 
@@ -723,3 +1082,42 @@ public class Client {
 - **코드 복잡성 증가**: 새로운 어댑터 클래스를 추가해야 하므로 전체적인 코드의 양과 복잡성이 늘어날 수 있습니다.
 - **간접 호출**: 어댑터를 통한 간접 호출로 인해 약간의 성능 오버헤드가 발생할 수 있습니다.
 - **디버깅 복잡성**: 여러 어댑터가 연결되면 디버깅이 복잡해질 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Bridge** | Adapter는 기존 인터페이스 변환, Bridge는 설계 시점에 분리 |
+| **Decorator** | Adapter는 인터페이스 변환, Decorator는 기능 추가 |
+| **Proxy** | Adapter는 다른 인터페이스 제공, Proxy는 동일 인터페이스 |
+| **Facade** | Adapter는 1:1 변환, Facade는 복잡한 서브시스템 단순화 |
+
+### Adapter vs Facade vs Proxy
+
+```java
+// Adapter: 인터페이스 A → 인터페이스 B 변환
+class PaymentAdapter implements OurPayment {
+    private ExternalPaymentAPI external;  // 다른 인터페이스
+    public void pay() { external.charge(); }  // 변환
+}
+
+// Facade: 복잡한 서브시스템을 단순한 인터페이스로
+class OrderFacade {
+    private InventoryService inventory;
+    private PaymentService payment;
+    private ShippingService shipping;
+    public void placeOrder() { /* 여러 서비스 조합 */ }
+}
+
+// Proxy: 같은 인터페이스로 접근 제어/지연 로딩
+class PaymentProxy implements Payment {
+    private Payment realPayment;  // 같은 인터페이스
+    public void pay() { /* 캐싱, 로깅 등 후 */ realPayment.pay(); }
+}
+```
+
+| 비교 | Adapter | Facade | Proxy |
+|------|---------|--------|-------|
+| 목적 | 인터페이스 변환 | 복잡성 숨김 | 접근 제어 |
+| 대상 | 호환 안되는 클래스 | 복잡한 서브시스템 | 동일한 객체 |
+| 인터페이스 | 다름 | 새로 정의 | 동일 |

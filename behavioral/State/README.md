@@ -4,6 +4,33 @@
 
 상태 패턴은 객체의 내부 상태가 변경될 때 객체의 행동이 변하도록 허용하는 행동 디자인 패턴입니다. 객체가 마치 자신의 클래스를 바꾼 것처럼 보이게 합니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 상태에 따라 다르게 동작하는 if-else를 객체로 분리 |
+| **비유** | 신호등 - 빨간불/노란불/초록불 상태마다 다른 동작 |
+| **언제** | 객체가 상태에 따라 다르게 동작하고, 상태 전이 규칙이 복잡할 때 |
+| **Spring** | Spring State Machine, 주문 상태 관리, 워크플로우 엔진 |
+
+### 핵심 구성요소
+```
+Context      → 현재 상태를 보관하고 요청을 위임
+State        → 상태별 행동을 정의하는 인터페이스
+ConcreteState→ 각 상태에서의 구체적인 행동 구현
+```
+
+### if-else vs State 패턴
+```java
+// Before: if-else 지옥
+if (state == "PENDING") { ... }
+else if (state == "APPROVED") { ... }
+else if (state == "REJECTED") { ... }
+
+// After: 상태별 클래스로 분리
+currentState.handle(this);  // 상태가 알아서 처리!
+```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -42,6 +69,33 @@ classDiagram
 
     note for Context "상태를 관리하고 요청을 위임"
     note for State "상태별 행동을 정의하는 인터페이스"
+```
+
+## 동작 흐름 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant Client as 👤 Client
+    participant Context as 📦 Context
+    participant StateA as 🔴 StateA
+    participant StateB as 🟢 StateB
+
+    Note over Client,StateB: 1. 초기 상태 설정
+    Client->>Context: new Context(StateA)
+    Context->>Context: state = StateA
+
+    Note over Client,StateB: 2. 요청 처리 (상태 A)
+    Client->>Context: request()
+    Context->>StateA: handle(this)
+    StateA->>StateA: 상태 A의 로직 수행
+    StateA->>Context: setState(StateB)
+    Context->>Context: state = StateB
+
+    Note over Client,StateB: 3. 요청 처리 (상태 B)
+    Client->>Context: request()
+    Context->>StateB: handle(this)
+    StateB->>StateB: 상태 B의 로직 수행
+    StateB-->>Context: 완료
 ```
 
 ## 사용 이유
@@ -112,6 +166,112 @@ class MediaPlayer {
 - **네트워크 연결**: 연결대기, 연결됨, 연결해제 등
 - **문서 워크플로우**: 작성중, 검토중, 승인됨, 반려됨 등
 - **게임 레벨**: 로딩, 플레이중, 일시정지, 게임오버 등
+
+## 초급 예제 - 신호등 (5분 이해)
+
+가장 익숙한 신호등을 State 패턴으로 구현합니다.
+
+```java
+// 1. State 인터페이스 - 모든 상태의 공통 규약
+interface TrafficLightState {
+    void handle(TrafficLight light);
+    String getColor();
+}
+
+// 2. Context - 현재 상태를 보관하고 위임
+class TrafficLight {
+    private TrafficLightState state;
+
+    public TrafficLight() {
+        this.state = new RedState();  // 초기 상태: 빨간불
+    }
+
+    public void setState(TrafficLightState state) {
+        this.state = state;
+        System.out.println("신호 변경: " + state.getColor());
+    }
+
+    public void change() {
+        state.handle(this);  // 현재 상태에게 위임
+    }
+}
+
+// 3. Concrete States - 각 상태별 행동 구현
+class RedState implements TrafficLightState {
+    @Override
+    public void handle(TrafficLight light) {
+        System.out.println("🔴 빨간불: 정지!");
+        // 다음 상태로 전이
+        light.setState(new GreenState());
+    }
+
+    @Override
+    public String getColor() { return "빨간불"; }
+}
+
+class GreenState implements TrafficLightState {
+    @Override
+    public void handle(TrafficLight light) {
+        System.out.println("🟢 초록불: 출발!");
+        light.setState(new YellowState());
+    }
+
+    @Override
+    public String getColor() { return "초록불"; }
+}
+
+class YellowState implements TrafficLightState {
+    @Override
+    public void handle(TrafficLight light) {
+        System.out.println("🟡 노란불: 주의!");
+        light.setState(new RedState());
+    }
+
+    @Override
+    public String getColor() { return "노란불"; }
+}
+
+// 4. 사용 예시
+public class TrafficLightDemo {
+    public static void main(String[] args) {
+        TrafficLight light = new TrafficLight();
+
+        // 신호가 순환함
+        light.change();  // 빨간불 → 초록불로 변경
+        light.change();  // 초록불 → 노란불로 변경
+        light.change();  // 노란불 → 빨간불로 변경
+        light.change();  // 빨간불 → 초록불로 변경
+    }
+}
+```
+
+**실행 결과:**
+```
+🔴 빨간불: 정지!
+신호 변경: 초록불
+🟢 초록불: 출발!
+신호 변경: 노란불
+🟡 노란불: 주의!
+신호 변경: 빨간불
+🔴 빨간불: 정지!
+신호 변경: 초록불
+```
+
+### 핵심 포인트
+```
+1. Context는 현재 상태만 알면 됨 (어떤 상태인지는 몰라도 OK)
+2. 각 State가 "다음 상태로 전이"하는 책임을 가짐
+3. 새로운 상태 추가 = 새 클래스 추가 (기존 코드 수정 불필요)
+```
+
+### State vs Strategy 패턴
+```
+State:     상태에 따라 행동이 달라짐 (상태 전이가 핵심)
+           예: 빨간불 → 초록불 → 노란불 → 빨간불...
+
+Strategy:  같은 목적, 다른 알고리즘 (선택이 핵심)
+           예: 결제 방식 선택 (카드 / 현금 / 간편결제)
+```
 
 ## 실생활 예제 - 스마트 자동판매기 시스템
 
@@ -835,6 +995,363 @@ public class StatePatternDemo {
 }
 ```
 
+## Spring Boot에서의 State 패턴
+
+Spring에서 상태 패턴은 **주문/결제 상태 관리**, **워크플로우**, **승인 프로세스**에 자주 활용됩니다.
+
+### 1. 주문 상태 관리 시스템 (실무 예제)
+
+```java
+// 주문 상태 인터페이스
+public interface OrderState {
+    void next(Order order);      // 다음 상태로 전이
+    void cancel(Order order);    // 취소 처리
+    String getStateName();
+    boolean canCancel();
+}
+
+// 주문 엔티티 (Context 역할)
+@Entity
+@Getter @Setter
+public class Order {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String productName;
+    private int amount;
+
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;  // DB 저장용
+
+    @Transient
+    private OrderState state;    // 상태 객체
+
+    @PostLoad
+    public void initState() {
+        this.state = OrderStateFactory.getState(this.status);
+    }
+
+    public void nextState() {
+        state.next(this);
+    }
+
+    public void cancelOrder() {
+        state.cancel(this);
+    }
+
+    public void changeState(OrderState newState, OrderStatus newStatus) {
+        this.state = newState;
+        this.status = newStatus;
+    }
+}
+
+// 상태 Enum (DB 저장용)
+public enum OrderStatus {
+    PENDING,      // 주문 접수
+    PAID,         // 결제 완료
+    PREPARING,    // 상품 준비 중
+    SHIPPED,      // 배송 중
+    DELIVERED,    // 배송 완료
+    CANCELLED     // 취소됨
+}
+```
+
+```java
+// 상태별 구현체들
+@Component
+public class PendingState implements OrderState {
+    @Override
+    public void next(Order order) {
+        order.changeState(new PaidState(), OrderStatus.PAID);
+        System.out.println("✅ 결제가 완료되었습니다.");
+    }
+
+    @Override
+    public void cancel(Order order) {
+        order.changeState(new CancelledState(), OrderStatus.CANCELLED);
+        System.out.println("❌ 주문이 취소되었습니다.");
+    }
+
+    @Override
+    public String getStateName() { return "주문 접수"; }
+
+    @Override
+    public boolean canCancel() { return true; }
+}
+
+@Component
+public class PaidState implements OrderState {
+    @Override
+    public void next(Order order) {
+        order.changeState(new PreparingState(), OrderStatus.PREPARING);
+        System.out.println("📦 상품 준비를 시작합니다.");
+    }
+
+    @Override
+    public void cancel(Order order) {
+        // 결제 환불 로직 필요
+        order.changeState(new CancelledState(), OrderStatus.CANCELLED);
+        System.out.println("💸 결제가 환불되고 주문이 취소되었습니다.");
+    }
+
+    @Override
+    public String getStateName() { return "결제 완료"; }
+
+    @Override
+    public boolean canCancel() { return true; }
+}
+
+@Component
+public class ShippedState implements OrderState {
+    @Override
+    public void next(Order order) {
+        order.changeState(new DeliveredState(), OrderStatus.DELIVERED);
+        System.out.println("🎉 배송이 완료되었습니다!");
+    }
+
+    @Override
+    public void cancel(Order order) {
+        // 배송 중에는 취소 불가!
+        throw new IllegalStateException("배송 중에는 취소할 수 없습니다.");
+    }
+
+    @Override
+    public String getStateName() { return "배송 중"; }
+
+    @Override
+    public boolean canCancel() { return false; }  // 취소 불가
+}
+
+// ... PreparingState, DeliveredState, CancelledState 등
+```
+
+```java
+// 상태 팩토리 (상태 Enum → 상태 객체 변환)
+@Component
+public class OrderStateFactory {
+    private static Map<OrderStatus, OrderState> stateMap = new HashMap<>();
+
+    @Autowired
+    public OrderStateFactory(
+            PendingState pending,
+            PaidState paid,
+            PreparingState preparing,
+            ShippedState shipped,
+            DeliveredState delivered,
+            CancelledState cancelled) {
+
+        stateMap.put(OrderStatus.PENDING, pending);
+        stateMap.put(OrderStatus.PAID, paid);
+        stateMap.put(OrderStatus.PREPARING, preparing);
+        stateMap.put(OrderStatus.SHIPPED, shipped);
+        stateMap.put(OrderStatus.DELIVERED, delivered);
+        stateMap.put(OrderStatus.CANCELLED, cancelled);
+    }
+
+    public static OrderState getState(OrderStatus status) {
+        return stateMap.get(status);
+    }
+}
+```
+
+```java
+// 주문 서비스
+@Service
+@RequiredArgsConstructor
+@Transactional
+public class OrderService {
+    private final OrderRepository orderRepository;
+
+    public Order createOrder(String productName, int amount) {
+        Order order = new Order();
+        order.setProductName(productName);
+        order.setAmount(amount);
+        order.changeState(new PendingState(), OrderStatus.PENDING);
+        return orderRepository.save(order);
+    }
+
+    public Order processNext(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        order.initState();  // DB에서 로드 후 상태 객체 초기화
+        order.nextState();  // 다음 상태로 전이
+        return orderRepository.save(order);
+    }
+
+    public Order cancelOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        order.initState();
+
+        if (!order.getState().canCancel()) {
+            throw new IllegalStateException(
+                order.getState().getStateName() + " 상태에서는 취소할 수 없습니다.");
+        }
+
+        order.cancelOrder();
+        return orderRepository.save(order);
+    }
+}
+```
+
+```java
+// REST 컨트롤러
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class OrderController {
+    private final OrderService orderService;
+
+    @PostMapping
+    public ResponseEntity<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+        Order order = orderService.createOrder(request.getProductName(), request.getAmount());
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+
+    @PostMapping("/{id}/next")
+    public ResponseEntity<OrderResponse> processNext(@PathVariable Long id) {
+        Order order = orderService.processNext(id);
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<OrderResponse> cancel(@PathVariable Long id) {
+        Order order = orderService.cancelOrder(id);
+        return ResponseEntity.ok(OrderResponse.from(order));
+    }
+}
+```
+
+### 2. Spring State Machine 사용하기
+
+Spring State Machine 라이브러리를 사용하면 복잡한 상태 전이도 쉽게 관리할 수 있습니다.
+
+```xml
+<!-- pom.xml -->
+<dependency>
+    <groupId>org.springframework.statemachine</groupId>
+    <artifactId>spring-statemachine-starter</artifactId>
+</dependency>
+```
+
+```java
+// 상태와 이벤트 정의
+public enum OrderStates {
+    PENDING, PAID, PREPARING, SHIPPED, DELIVERED, CANCELLED
+}
+
+public enum OrderEvents {
+    PAY, PREPARE, SHIP, DELIVER, CANCEL
+}
+```
+
+```java
+// State Machine 설정
+@Configuration
+@EnableStateMachine
+public class OrderStateMachineConfig
+        extends StateMachineConfigurerAdapter<OrderStates, OrderEvents> {
+
+    @Override
+    public void configure(StateMachineStateConfigurer<OrderStates, OrderEvents> states)
+            throws Exception {
+        states
+            .withStates()
+            .initial(OrderStates.PENDING)
+            .end(OrderStates.DELIVERED)
+            .end(OrderStates.CANCELLED)
+            .states(EnumSet.allOf(OrderStates.class));
+    }
+
+    @Override
+    public void configure(StateMachineTransitionConfigurer<OrderStates, OrderEvents> transitions)
+            throws Exception {
+        transitions
+            // 정상 흐름
+            .withExternal()
+                .source(OrderStates.PENDING).target(OrderStates.PAID)
+                .event(OrderEvents.PAY)
+                .and()
+            .withExternal()
+                .source(OrderStates.PAID).target(OrderStates.PREPARING)
+                .event(OrderEvents.PREPARE)
+                .and()
+            .withExternal()
+                .source(OrderStates.PREPARING).target(OrderStates.SHIPPED)
+                .event(OrderEvents.SHIP)
+                .and()
+            .withExternal()
+                .source(OrderStates.SHIPPED).target(OrderStates.DELIVERED)
+                .event(OrderEvents.DELIVER)
+                .and()
+            // 취소 흐름 (PENDING, PAID에서만 가능)
+            .withExternal()
+                .source(OrderStates.PENDING).target(OrderStates.CANCELLED)
+                .event(OrderEvents.CANCEL)
+                .and()
+            .withExternal()
+                .source(OrderStates.PAID).target(OrderStates.CANCELLED)
+                .event(OrderEvents.CANCEL)
+                .guard(ctx -> true)  // 추가 조건 가능
+                .action(ctx -> System.out.println("환불 처리 중..."));
+    }
+}
+```
+
+```java
+// State Machine 사용
+@Service
+@RequiredArgsConstructor
+public class OrderStateMachineService {
+    private final StateMachine<OrderStates, OrderEvents> stateMachine;
+
+    public void processPayment(Long orderId) {
+        stateMachine.sendEvent(OrderEvents.PAY);
+        System.out.println("현재 상태: " + stateMachine.getState().getId());
+    }
+
+    public boolean canCancel() {
+        return stateMachine.getState().getId() == OrderStates.PENDING
+            || stateMachine.getState().getId() == OrderStates.PAID;
+    }
+}
+```
+
+### 3. Spring에서 상태 패턴이 사용되는 곳
+
+| Spring 기능 | State 패턴 적용 |
+|------------|----------------|
+| `Spring State Machine` | 복잡한 상태 전이 관리 전용 라이브러리 |
+| `Spring Batch` | Job/Step의 상태 관리 (STARTED, COMPLETED, FAILED) |
+| `Spring Security` | 인증 상태 관리 (ANONYMOUS, AUTHENTICATED) |
+| 주문/결제 시스템 | 주문 상태 흐름 관리 |
+
+### 실무 팁: 상태와 DB 동기화
+
+```java
+// 상태를 Enum으로 DB에 저장하고, 상태 객체로 변환
+@Entity
+public class Order {
+    @Enumerated(EnumType.STRING)
+    private OrderStatus status;  // DB에 문자열로 저장
+
+    @Transient
+    private OrderState state;    // 비즈니스 로직용 객체
+
+    // JPA 로드 후 상태 객체 초기화
+    @PostLoad
+    public void initState() {
+        this.state = OrderStateFactory.getState(this.status);
+    }
+}
+
+// 상태 변경 시 둘 다 업데이트
+public void changeState(OrderState newState, OrderStatus newStatus) {
+    this.state = newState;
+    this.status = newStatus;  // DB 저장용
+}
+```
+
 ## 장점
 
 - **상태별 행동 분리**: 각 상태의 행동을 별도 클래스로 분리하여 관리가 용이합니다.
@@ -849,3 +1366,50 @@ public class StatePatternDemo {
 - **상태 전이 복잡성**: 상태 간 전이가 복잡해지면 관리가 어려워질 수 있습니다.
 - **메모리 사용량**: 상태 객체들을 미리 생성해두면 메모리 사용량이 증가할 수 있습니다.
 - **과도한 설계**: 간단한 상태 변화에 대해서는 패턴 적용이 과도할 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Strategy** | 구조는 비슷하나 목적이 다름. Strategy는 알고리즘 교체, State는 상태에 따른 행동 변화 |
+| **Singleton** | 상태 객체를 Singleton으로 만들어 재사용하면 메모리 효율적 |
+| **Flyweight** | 많은 상태 객체가 필요할 때 공유하여 메모리 절약 |
+| **Command** | State와 함께 사용해 상태별로 다른 명령 실행 가능 |
+
+### State vs Strategy 비교
+
+```
+┌─────────────────┬──────────────────────────────────────────┐
+│                 │ State                 │ Strategy         │
+├─────────────────┼───────────────────────┼──────────────────┤
+│ 목적            │ 상태에 따른 행동 변화 │ 알고리즘 교체    │
+│ 상태 전이       │ 상태가 스스로 전이    │ 클라이언트가 선택│
+│ 객체 관계       │ 상태끼리 서로 알 수 O │ 전략끼리 모름    │
+│ 사용 예시       │ 신호등, 주문 상태     │ 정렬, 결제 방식  │
+└─────────────────┴───────────────────────┴──────────────────┘
+
+// State: 상태가 다음 상태로 자동 전이
+class RedState {
+    void handle(Light light) {
+        light.setState(new GreenState());  // 상태가 전이 결정
+    }
+}
+
+// Strategy: 클라이언트가 전략 선택
+paymentService.setStrategy(new CardStrategy());  // 외부에서 선택
+paymentService.pay(amount);
+```
+
+### 언제 State를 쓰고, 언제 Strategy를 쓸까?
+
+```
+State 패턴을 사용:
+├─ 상태마다 다른 행동이 필요할 때 (주문: 대기 → 결제 → 배송)
+├─ 상태 전이 규칙이 있을 때 (빨간불 다음은 초록불)
+└─ 상태끼리 서로 전이해야 할 때
+
+Strategy 패턴을 사용:
+├─ 같은 목적의 다른 알고리즘이 있을 때 (결제: 카드/현금/페이)
+├─ 런타임에 알고리즘을 교체해야 할 때
+└─ 알고리즘끼리 독립적일 때 (정렬 알고리즘들)
+```

@@ -4,6 +4,33 @@
 
 프로토타입 패턴은 기존 객체를 복제하여 새로운 객체를 생성하는 생성 디자인 패턴입니다. 클래스로부터 객체를 생성하는 것이 비용이 많이 들거나 복잡할 때, 기존 인스턴스를 복제하여 새로운 인스턴스를 만드는 것이 더 효율적일 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | new 대신 기존 객체를 **복제**하여 새 객체 생성 |
+| **비유** | 세포 분열 - 기존 세포를 복제하여 새로운 세포 생성 |
+| **언제** | 객체 생성 비용이 크거나, 비슷한 객체를 많이 만들 때 |
+| **Spring** | `@Scope("prototype")`, `BeanUtils.copyProperties()` |
+
+### 핵심 구성요소
+```
+Prototype       → clone() 메서드를 정의하는 인터페이스
+ConcretePrototype → 자신을 복제하는 clone() 구현
+Client          → clone()을 호출하여 객체 복제
+```
+
+### new vs clone
+```java
+// new: 처음부터 다시 생성 (비용 높음)
+Monster m = new Monster();
+m.loadFromDatabase();    // DB 조회
+m.initializeGraphics();  // 리소스 로딩
+
+// clone: 기존 객체 복제 (비용 낮음)
+Monster m2 = existingMonster.clone();  // 즉시 완료!
+```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -38,6 +65,48 @@ classDiagram
 
     note for Prototype "복제 메서드를 정의하는 인터페이스"
     note for ConcretePrototype1 "자신을 복제하는 구체적인 구현"
+```
+
+## 동작 흐름
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant PrototypeRegistry
+    participant Prototype
+    participant Clone
+
+    Note over PrototypeRegistry: 프로토타입들이 미리 등록됨
+
+    Client->>PrototypeRegistry: getPrototype("typeA")
+    PrototypeRegistry->>Prototype: clone()
+
+    Note over Prototype: 자신을 복제하여<br/>새 객체 생성
+
+    Prototype->>Clone: new Clone(this.fields)
+    Prototype-->>PrototypeRegistry: clone 객체 반환
+    PrototypeRegistry-->>Client: clone 객체 반환
+
+    Client->>Clone: customize()
+    Note over Clone: 필요에 따라<br/>복제본 수정
+```
+
+### 복제 과정 상세
+
+```mermaid
+sequenceDiagram
+    participant Original as 원본 객체
+    participant Clone as 복제 객체
+
+    Note over Original: 이미 초기화된 상태<br/>(DB 로딩, 설정 완료)
+
+    Original->>Clone: 얕은 복사 (super.clone())
+    Note over Clone: 기본 필드 복사됨
+
+    Original->>Clone: 깊은 복사 (참조 객체)
+    Note over Clone: 참조 객체도 별도 복사
+
+    Clone-->>Clone: 독립적인 객체 완성
 ```
 
 ## 사용 이유
@@ -145,6 +214,91 @@ copy.getItems().add("Item2"); // original에 영향 없음
 System.out.println(original.getItems()); // [Item1] - 예상대로 동작
 System.out.println(copy.getItems()); // [Item1, Item2]
 ```
+
+## 초급 예제: 문서 복제 시스템
+
+가장 간단한 프로토타입 패턴 예제입니다. 문서를 복제하여 새 문서를 만드는 상황입니다.
+
+```java
+// 1. 프로토타입 인터페이스 - 복제 기능 정의
+interface Document extends Cloneable {
+    Document copy();  // clone 대신 copy라는 이름 사용 (더 직관적)
+    void print();
+}
+
+// 2. 구체적인 프로토타입 - 이력서 문서
+class Resume implements Document {
+    private String name;
+    private String content;
+
+    public Resume(String name, String content) {
+        this.name = name;
+        this.content = content;
+        // 실제로는 여기서 복잡한 초기화가 일어날 수 있음
+        System.out.println("📄 새 이력서 생성 (비용 높음)");
+    }
+
+    // 복제용 생성자 (깊은 복사)
+    private Resume(Resume other) {
+        this.name = other.name;
+        this.content = other.content;
+        System.out.println("📋 이력서 복제 (비용 낮음)");
+    }
+
+    @Override
+    public Document copy() {
+        return new Resume(this);  // 복제본 반환
+    }
+
+    public void setName(String name) { this.name = name; }
+
+    @Override
+    public void print() {
+        System.out.println("이력서: " + name);
+        System.out.println("내용: " + content);
+    }
+}
+
+// 3. 사용 예제
+public class PrototypeDemo {
+    public static void main(String[] args) {
+        // 원본 이력서 생성 (비용 높음)
+        Resume original = new Resume("홍길동", "Java 개발자 경력 5년");
+
+        // 복제하여 새 이력서 생성 (비용 낮음)
+        Resume copy1 = (Resume) original.copy();
+        copy1.setName("김철수");  // 이름만 변경
+
+        Resume copy2 = (Resume) original.copy();
+        copy2.setName("이영희");
+
+        System.out.println("\n--- 결과 ---");
+        original.print();
+        copy1.print();
+        copy2.print();
+    }
+}
+```
+
+**실행 결과:**
+```
+📄 새 이력서 생성 (비용 높음)
+📋 이력서 복제 (비용 낮음)
+📋 이력서 복제 (비용 낮음)
+
+--- 결과 ---
+이력서: 홍길동
+내용: Java 개발자 경력 5년
+이력서: 김철수
+내용: Java 개발자 경력 5년
+이력서: 이영희
+내용: Java 개발자 경력 5년
+```
+
+**핵심 포인트:**
+- 원본은 한 번만 생성하고, 나머지는 복제
+- 복제 후 필요한 부분만 수정
+- `new`로 생성하는 것보다 `copy()`가 훨씬 빠름
 
 ## 실생활 예제 - 게임 몬스터 복제 시스템
 
@@ -626,6 +780,235 @@ public class Client {
 }
 ```
 
+## Spring Boot에서의 Prototype 패턴
+
+### 1. @Scope("prototype") - Spring의 프로토타입 스코프
+
+```java
+// Prototype 스코프 빈 정의
+@Component
+@Scope("prototype")
+public class ShoppingCart {
+    private List<CartItem> items = new ArrayList<>();
+    private LocalDateTime createdAt;
+
+    public ShoppingCart() {
+        this.createdAt = LocalDateTime.now();
+        System.out.println("🛒 새 장바구니 생성: " + createdAt);
+    }
+
+    public void addItem(CartItem item) {
+        items.add(item);
+    }
+
+    public List<CartItem> getItems() {
+        return items;
+    }
+}
+
+// 서비스에서 사용
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+    private final ApplicationContext context;
+
+    public ShoppingCart createNewCart() {
+        // 호출할 때마다 새 인스턴스 생성
+        return context.getBean(ShoppingCart.class);
+    }
+}
+```
+
+### 2. BeanUtils를 이용한 객체 복제
+
+```java
+@Entity
+@Getter @Setter
+public class Product {
+    @Id @GeneratedValue
+    private Long id;
+    private String name;
+    private BigDecimal price;
+    private String description;
+    private String category;
+}
+
+@Service
+@RequiredArgsConstructor
+public class ProductService {
+    private final ProductRepository productRepository;
+
+    // 기존 상품을 복제하여 새 상품 생성
+    public Product copyProduct(Long originalId, String newName) {
+        Product original = productRepository.findById(originalId)
+            .orElseThrow(() -> new EntityNotFoundException("상품 없음"));
+
+        Product copy = new Product();
+        // 모든 속성 복사 (id 제외)
+        BeanUtils.copyProperties(original, copy, "id");
+        copy.setName(newName);
+
+        return productRepository.save(copy);
+    }
+}
+```
+
+### 3. 프로토타입 레지스트리 패턴
+
+```java
+// 프로토타입 인터페이스
+public interface ReportPrototype extends Cloneable {
+    ReportPrototype copy();
+    void generate();
+    String getType();
+}
+
+// 구체적인 프로토타입들
+@Component("sales")
+public class SalesReport implements ReportPrototype {
+    private String title = "매출 보고서";
+    private LocalDate reportDate;
+    private Map<String, Object> data = new HashMap<>();
+
+    @Override
+    public ReportPrototype copy() {
+        SalesReport copy = new SalesReport();
+        copy.title = this.title;
+        copy.reportDate = LocalDate.now();
+        copy.data = new HashMap<>(this.data);  // 깊은 복사
+        return copy;
+    }
+
+    @Override
+    public String getType() { return "sales"; }
+
+    @Override
+    public void generate() {
+        System.out.println("📊 " + title + " 생성: " + reportDate);
+    }
+}
+
+@Component("inventory")
+public class InventoryReport implements ReportPrototype {
+    private String title = "재고 보고서";
+    private LocalDate reportDate;
+
+    @Override
+    public ReportPrototype copy() {
+        InventoryReport copy = new InventoryReport();
+        copy.title = this.title;
+        copy.reportDate = LocalDate.now();
+        return copy;
+    }
+
+    @Override
+    public String getType() { return "inventory"; }
+
+    @Override
+    public void generate() {
+        System.out.println("📦 " + title + " 생성: " + reportDate);
+    }
+}
+
+// 프로토타입 레지스트리
+@Component
+@RequiredArgsConstructor
+public class ReportRegistry {
+    // Spring이 자동으로 모든 ReportPrototype 빈을 Map으로 주입
+    private final Map<String, ReportPrototype> prototypes;
+
+    public ReportPrototype createReport(String type) {
+        ReportPrototype prototype = prototypes.get(type);
+        if (prototype == null) {
+            throw new IllegalArgumentException("Unknown report type: " + type);
+        }
+        return prototype.copy();
+    }
+
+    public Set<String> getAvailableTypes() {
+        return prototypes.keySet();
+    }
+}
+
+// 컨트롤러
+@RestController
+@RequestMapping("/api/reports")
+@RequiredArgsConstructor
+public class ReportController {
+    private final ReportRegistry registry;
+
+    @PostMapping("/{type}")
+    public ResponseEntity<String> generateReport(@PathVariable String type) {
+        ReportPrototype report = registry.createReport(type);
+        report.generate();
+        return ResponseEntity.ok("Report generated: " + type);
+    }
+
+    @GetMapping("/types")
+    public Set<String> getReportTypes() {
+        return registry.getAvailableTypes();
+    }
+}
+```
+
+### 4. ModelMapper를 이용한 DTO 복제
+
+```java
+@Configuration
+public class ModelMapperConfig {
+    @Bean
+    public ModelMapper modelMapper() {
+        return new ModelMapper();
+    }
+}
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+    private final ModelMapper modelMapper;
+    private final UserRepository userRepository;
+
+    // Entity → DTO 변환 (일종의 복제)
+    public UserDTO copyToDto(User user) {
+        return modelMapper.map(user, UserDTO.class);
+    }
+
+    // DTO → 새 Entity 생성 (복제 후 수정)
+    public User createFromTemplate(UserDTO template, String newEmail) {
+        User newUser = modelMapper.map(template, User.class);
+        newUser.setId(null);  // 새 ID 발급을 위해
+        newUser.setEmail(newEmail);
+        return userRepository.save(newUser);
+    }
+}
+```
+
+### 5. 프로토타입 빈과 싱글톤 빈 함께 사용
+
+```java
+// 프로토타입 스코프 (요청마다 새 인스턴스)
+@Component
+@Scope(value = "prototype", proxyMode = ScopedProxyMode.TARGET_CLASS)
+public class RequestContext {
+    private final String requestId = UUID.randomUUID().toString();
+    private LocalDateTime timestamp = LocalDateTime.now();
+
+    public String getRequestId() { return requestId; }
+}
+
+// 싱글톤 서비스에서 프로토타입 빈 사용
+@Service
+@RequiredArgsConstructor
+public class AuditService {
+    // proxyMode 덕분에 매번 새 인스턴스 획득
+    private final RequestContext requestContext;
+
+    public void log(String action) {
+        System.out.println("[" + requestContext.getRequestId() + "] " + action);
+    }
+}
+```
+
 ## 장점
 
 - **성능 향상**: 복잡한 객체의 초기화 비용을 줄일 수 있습니다.
@@ -640,3 +1023,29 @@ public class Client {
 - **clone() 메서드 오버라이드**: 모든 클래스에서 clone() 메서드를 구현해야 합니다.
 - **얕은 복사 함정**: 기본 clone()은 얕은 복사를 수행하므로 참조 객체 문제가 발생할 수 있습니다.
 - **상속 관계에서의 복잡성**: 상속 관계가 복잡할 때 clone() 구현이 어려워집니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 | 비교 |
+|------|------|------|
+| **Factory Method** | 대안 | Factory는 클래스 기반 생성, Prototype은 인스턴스 기반 생성 |
+| **Abstract Factory** | 조합 | Abstract Factory가 Prototype으로 제품을 생성할 수 있음 |
+| **Singleton** | 반대 | Singleton은 하나만, Prototype은 여러 복제본 생성 |
+| **Composite** | 조합 | 복잡한 트리 구조를 Prototype으로 복제 가능 |
+| **Decorator** | 조합 | 장식된 객체를 Prototype으로 복제하여 재사용 |
+
+### Factory Method vs Prototype
+
+```java
+// Factory Method: 클래스를 통해 생성
+Monster monster = monsterFactory.create("orc");  // new Orc() 호출
+
+// Prototype: 인스턴스를 복제하여 생성
+Monster monster = orcPrototype.clone();  // 기존 객체 복제
+```
+
+**선택 기준:**
+- 객체 생성 비용이 높음 → **Prototype**
+- 객체 종류가 런타임에 결정됨 → **Prototype**
+- 객체 생성 로직이 복잡함 → **Factory Method**
+- 객체 타입별 다른 생성 로직 필요 → **Factory Method**

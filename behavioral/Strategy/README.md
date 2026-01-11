@@ -4,6 +4,30 @@
 
 전략 패턴은 알고리즘군을 정의하고 각각을 캡슐화하여 서로 바꿔 쓸 수 있도록 만드는 행동 디자인 패턴입니다. 전략을 사용하면 클라이언트로부터 알고리즘을 분리하여 독립적으로 변경할 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 알고리즘을 캡슐화하여 런타임에 교체 가능하게 |
+| **비유** | 네비게이션에서 "최단거리/최소비용/최소시간" 경로 선택 |
+| **언제** | if-else로 분기되는 알고리즘이 3개 이상일 때 |
+| **Spring** | `@Qualifier`로 전략 주입, `Map<String, Strategy>` 활용 |
+
+> **💡 결제 요청이 들어왔을 때...**
+>
+> **❌ Before (if-else 지옥)**
+> ```java
+> if (type == "card") { 카드결제 }
+> else if (type == "kakao") { 카카오페이 }
+> else if (type == "naver") { 네이버페이 }
+> else if (type == "toss") { 토스페이 }  // ← 계속 늘어남!
+> ```
+>
+> **✅ After (전략 패턴)**
+> ```java
+> strategy.pay(amount)  // ← 어떤 결제든 동일한 호출!
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -38,6 +62,31 @@ classDiagram
 
     note for Context "전략을 사용하는 컨텍스트"
     note for Strategy "모든 전략의 공통 인터페이스"
+```
+
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Context as Context<br/>(PaymentService)
+    participant Strategy as Strategy<br/>(PaymentStrategy)
+
+    Note over Client,Strategy: 1. 전략 설정
+    Client->>Context: setStrategy(CardPayment)
+
+    Note over Client,Strategy: 2. 전략 실행
+    Client->>Context: pay(10000원)
+    Context->>Strategy: pay(10000원)
+    Strategy-->>Context: 결제 완료
+    Context-->>Client: 결과 반환
+
+    Note over Client,Strategy: 3. 런타임에 전략 변경
+    Client->>Context: setStrategy(KakaoPay)
+    Client->>Context: pay(20000원)
+    Context->>Strategy: pay(20000원)
+    Strategy-->>Context: 결제 완료
+    Context-->>Client: 결과 반환
 ```
 
 ## 사용 이유
@@ -573,6 +622,296 @@ public class GameCombatSystemDemo {
 전사 아르투르 (ranged): 🏹 원거리 공격 (조준 사격) - 피해: 86 (치명타!)
 ```
 
+## 초급 예제 - 5분 만에 이해하기
+
+가장 간단한 결제 시스템으로 전략 패턴의 핵심을 이해해봅시다.
+
+```java
+// 1단계: 전략 인터페이스 정의 (모든 결제 방식의 공통 규약)
+interface PaymentStrategy {
+    void pay(int amount);
+}
+
+// 2단계: 구체적인 전략 구현 (각 결제 방식)
+class CardPayment implements PaymentStrategy {
+    public void pay(int amount) {
+        System.out.println("💳 카드 결제: " + amount + "원");
+    }
+}
+
+class KakaoPayment implements PaymentStrategy {
+    public void pay(int amount) {
+        System.out.println("🟡 카카오페이 결제: " + amount + "원");
+    }
+}
+
+class NaverPayment implements PaymentStrategy {
+    public void pay(int amount) {
+        System.out.println("🟢 네이버페이 결제: " + amount + "원");
+    }
+}
+
+// 3단계: 컨텍스트 (전략을 사용하는 클래스)
+class PaymentService {
+    private PaymentStrategy strategy;
+
+    public void setStrategy(PaymentStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    public void checkout(int amount) {
+        strategy.pay(amount);
+    }
+}
+
+// 4단계: 사용
+public class Main {
+    public static void main(String[] args) {
+        PaymentService service = new PaymentService();
+
+        // 카드 결제
+        service.setStrategy(new CardPayment());
+        service.checkout(10000);  // 💳 카드 결제: 10000원
+
+        // 런타임에 결제 방식 변경!
+        service.setStrategy(new KakaoPayment());
+        service.checkout(20000);  // 🟡 카카오페이 결제: 20000원
+    }
+}
+```
+
+**핵심 포인트:**
+- `PaymentStrategy` 인터페이스로 모든 결제 방식을 통일
+- 새로운 결제 방식 추가 시 기존 코드 수정 없이 새 클래스만 추가
+- `setStrategy()`로 런타임에 결제 방식 교체 가능
+
+---
+
+## Spring Boot 예제
+
+실무에서 Spring Boot와 함께 전략 패턴을 사용하는 방법입니다.
+
+### 프로젝트 구조
+```
+src/main/java/com/example/payment/
+├── strategy/
+│   ├── PaymentStrategy.java        # 전략 인터페이스
+│   ├── CardPaymentStrategy.java    # 카드 결제
+│   ├── KakaoPayStrategy.java       # 카카오페이
+│   └── NaverPayStrategy.java       # 네이버페이
+├── service/
+│   └── PaymentService.java         # 서비스
+├── controller/
+│   └── PaymentController.java      # 컨트롤러
+└── dto/
+    ├── PaymentRequest.java
+    └── PaymentResult.java
+```
+
+### 1. 전략 인터페이스
+
+```java
+public interface PaymentStrategy {
+    PaymentResult pay(PaymentRequest request);
+    String getType();  // 전략 식별자
+}
+```
+
+### 2. 구체적인 전략 구현 (@Component 사용)
+
+```java
+@Component("card")
+public class CardPaymentStrategy implements PaymentStrategy {
+
+    @Override
+    public PaymentResult pay(PaymentRequest request) {
+        // 카드 결제 로직 (PG사 연동 등)
+        return PaymentResult.success(
+            "카드 결제 완료",
+            request.getAmount(),
+            LocalDateTime.now()
+        );
+    }
+
+    @Override
+    public String getType() {
+        return "card";
+    }
+}
+
+@Component("kakao")
+public class KakaoPayStrategy implements PaymentStrategy {
+
+    @Override
+    public PaymentResult pay(PaymentRequest request) {
+        // 카카오페이 API 연동
+        return PaymentResult.success(
+            "카카오페이 결제 완료",
+            request.getAmount(),
+            LocalDateTime.now()
+        );
+    }
+
+    @Override
+    public String getType() {
+        return "kakao";
+    }
+}
+
+@Component("naver")
+public class NaverPayStrategy implements PaymentStrategy {
+
+    @Override
+    public PaymentResult pay(PaymentRequest request) {
+        // 네이버페이 API 연동
+        return PaymentResult.success(
+            "네이버페이 결제 완료",
+            request.getAmount(),
+            LocalDateTime.now()
+        );
+    }
+
+    @Override
+    public String getType() {
+        return "naver";
+    }
+}
+```
+
+### 3. 서비스 (전략 자동 주입)
+
+```java
+@Service
+@RequiredArgsConstructor
+public class PaymentService {
+
+    // Spring이 모든 PaymentStrategy 구현체를 Map으로 주입
+    // key: Bean 이름 ("card", "kakao", "naver")
+    // value: 해당 전략 객체
+    private final Map<String, PaymentStrategy> strategies;
+
+    public PaymentResult processPayment(String paymentType, PaymentRequest request) {
+        PaymentStrategy strategy = strategies.get(paymentType);
+
+        if (strategy == null) {
+            throw new IllegalArgumentException(
+                "지원하지 않는 결제 방식: " + paymentType
+            );
+        }
+
+        return strategy.pay(request);
+    }
+
+    // 지원하는 결제 방식 목록 조회
+    public List<String> getAvailablePaymentTypes() {
+        return new ArrayList<>(strategies.keySet());
+    }
+}
+```
+
+### 4. 컨트롤러
+
+```java
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+public class PaymentController {
+
+    private final PaymentService paymentService;
+
+    @PostMapping("/{type}")
+    public ResponseEntity<PaymentResult> pay(
+            @PathVariable String type,
+            @RequestBody PaymentRequest request) {
+
+        PaymentResult result = paymentService.processPayment(type, request);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/types")
+    public ResponseEntity<List<String>> getPaymentTypes() {
+        return ResponseEntity.ok(paymentService.getAvailablePaymentTypes());
+    }
+}
+```
+
+### 5. DTO 클래스
+
+```java
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+public class PaymentRequest {
+    private Long orderId;
+    private int amount;
+    private String customerName;
+}
+
+@Getter
+@AllArgsConstructor
+public class PaymentResult {
+    private boolean success;
+    private String message;
+    private int amount;
+    private LocalDateTime paidAt;
+
+    public static PaymentResult success(String message, int amount, LocalDateTime paidAt) {
+        return new PaymentResult(true, message, amount, paidAt);
+    }
+
+    public static PaymentResult fail(String message) {
+        return new PaymentResult(false, message, 0, null);
+    }
+}
+```
+
+### 사용 예시 (API 호출)
+
+```bash
+# 카드 결제
+curl -X POST http://localhost:8080/api/payments/card \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": 1, "amount": 10000, "customerName": "홍길동"}'
+
+# 카카오페이 결제
+curl -X POST http://localhost:8080/api/payments/kakao \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": 2, "amount": 20000, "customerName": "김철수"}'
+
+# 지원하는 결제 방식 조회
+curl http://localhost:8080/api/payments/types
+# ["card", "kakao", "naver"]
+```
+
+### 새로운 결제 방식 추가하기
+
+토스페이를 추가하려면 **새 클래스만 만들면 됩니다**:
+
+```java
+@Component("toss")
+public class TossPayStrategy implements PaymentStrategy {
+
+    @Override
+    public PaymentResult pay(PaymentRequest request) {
+        // 토스페이 API 연동
+        return PaymentResult.success(
+            "토스페이 결제 완료",
+            request.getAmount(),
+            LocalDateTime.now()
+        );
+    }
+
+    @Override
+    public String getType() {
+        return "toss";
+    }
+}
+```
+
+**기존 코드 수정 없이** 바로 `/api/payments/toss`로 호출 가능!
+
+---
+
 ## 함수형 프로그래밍과 전략 패턴
 
 Java 8 이후 람다 표현식을 사용하여 더 간결하게 전략 패턴을 구현할 수 있습니다:
@@ -695,3 +1034,22 @@ public class Client {
 - **클래스 수 증가**: 각 전략을 별도의 클래스로 만들어야 하므로, 간단한 로직에 적용할 경우 클래스의 수가 늘어나는 단점이 있습니다.
 - **클라이언트의 책임**: 클라이언트가 어떤 전략을 사용해야 하는지 알아야 하므로, 클라이언트와 특정 전략 간에 약간의 결합이 생길 수 있습니다.
 - **오버헤드**: 간단한 알고리즘의 경우 전략 패턴을 적용하는 것이 과도할 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **State** | 비슷한 구조이지만, State는 상태에 따라 자동으로 전략이 바뀜 |
+| **Command** | Strategy는 알고리즘을, Command는 요청을 캡슐화 |
+| **Template Method** | Strategy는 위임으로, Template Method는 상속으로 알고리즘 변경 |
+| **Factory Method** | 전략 객체 생성에 Factory를 함께 사용 가능 |
+
+### Strategy vs State 비교
+
+```java
+// Strategy: 클라이언트가 직접 전략을 선택
+paymentService.setStrategy(new CardPayment());  // 명시적 선택
+
+// State: 상태에 따라 행동이 자동으로 변경
+orderState.process();  // 현재 상태에 따라 다른 동작 (대기→결제→배송)
+```

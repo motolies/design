@@ -4,6 +4,29 @@
 
 책임 연쇄 패턴은 요청을 보내는 쪽과 받는 쪽을 분리하는 패턴으로, 요청을 받을 수 있는 객체들을 체인으로 연결하여 요청이 처리될 때까지 체인을 따라 요청을 전달하는 행동 디자인 패턴입니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 요청을 처리할 수 있는 객체들을 체인으로 연결하여 순차적으로 전달 |
+| **비유** | 고객센터 전화 - 상담원 → 팀장 → 센터장 순으로 에스컬레이션 |
+| **언제** | 요청을 처리할 객체가 여러 개이고, 런타임에 결정해야 할 때 |
+| **Spring** | `Filter`, `Interceptor`, `Security Filter Chain`, `@ControllerAdvice` |
+
+### 핵심 구성요소
+```
+Handler       → 요청 처리의 공통 인터페이스 (handle, setNext)
+ConcreteHandler → 실제 요청을 처리하거나 다음으로 전달
+Client        → 체인의 첫 번째 핸들러에게 요청 전송
+```
+
+### 처리 흐름
+```
+요청 → [Handler A] → [Handler B] → [Handler C] → 처리 완료
+         ↓ 못함        ↓ 못함        ↓ 처리!
+       다음으로      다음으로         끝
+```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -40,6 +63,30 @@ classDiagram
 
     note for Handler "요청 처리 체인의 기본 구조"
     note for ConcreteHandlerA "특정 타입의 요청을 처리"
+```
+
+## 동작 흐름 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant Client as 👤 Client
+    participant H1 as 🔗 Handler A
+    participant H2 as 🔗 Handler B
+    participant H3 as 🔗 Handler C
+
+    Note over Client,H3: 1. 체인 구성
+    Client->>H1: setNext(HandlerB)
+    H1->>H2: setNext(HandlerC)
+
+    Note over Client,H3: 2. 요청 처리 (Handler A가 처리 못함)
+    Client->>H1: handle(request)
+    H1->>H1: canHandle()? ❌
+    H1->>H2: handle(request)
+    H2->>H2: canHandle()? ❌
+    H2->>H3: handle(request)
+    H3->>H3: canHandle()? ✅
+    H3->>H3: processRequest()
+    H3-->>Client: 처리 완료
 ```
 
 ## 사용 이유
@@ -92,6 +139,99 @@ abstract class Handler {
 - **GUI 이벤트**: 위젯 → 패널 → 윈도우 순서로 이벤트 전파
 - **네트워크 프로토콜**: OSI 7계층 모델의 각 레이어별 처리
 - **미들웨어**: 웹 서버의 필터/인터셉터 체인
+
+## 초급 예제 - 결재 승인 시스템 (5분 이해)
+
+금액에 따라 승인 권한이 다른 결재 시스템을 구현합니다.
+
+```java
+// 1. Handler 추상 클래스 - 체인의 기본 구조
+abstract class Approver {
+    protected Approver nextApprover;  // 다음 승인자
+    protected String name;
+    protected int approvalLimit;      // 승인 가능 금액
+
+    public Approver(String name, int approvalLimit) {
+        this.name = name;
+        this.approvalLimit = approvalLimit;
+    }
+
+    public Approver setNext(Approver next) {
+        this.nextApprover = next;
+        return next;  // 체이닝을 위해 반환
+    }
+
+    public void approve(int amount) {
+        if (amount <= approvalLimit) {
+            System.out.println("✅ " + name + " 승인: " + amount + "원");
+        } else if (nextApprover != null) {
+            System.out.println("➡️ " + name + " → 상위 결재자로 전달 (" + amount + "원)");
+            nextApprover.approve(amount);
+        } else {
+            System.out.println("❌ 승인 불가: " + amount + "원 (한도 초과)");
+        }
+    }
+}
+
+// 2. Concrete Handlers - 각 결재자
+class TeamLead extends Approver {
+    public TeamLead(String name) {
+        super(name, 100000);  // 10만원까지 승인 가능
+    }
+}
+
+class Manager extends Approver {
+    public Manager(String name) {
+        super(name, 500000);  // 50만원까지 승인 가능
+    }
+}
+
+class Director extends Approver {
+    public Director(String name) {
+        super(name, 1000000); // 100만원까지 승인 가능
+    }
+}
+
+// 3. 사용 예시
+public class ApprovalDemo {
+    public static void main(String[] args) {
+        // 체인 구성: 팀장 → 부장 → 이사
+        Approver teamLead = new TeamLead("김팀장");
+        Approver manager = new Manager("이부장");
+        Approver director = new Director("박이사");
+
+        teamLead.setNext(manager).setNext(director);
+
+        // 결재 요청
+        System.out.println("=== 결재 요청 ===");
+        teamLead.approve(50000);    // 5만원 - 팀장이 승인
+        teamLead.approve(200000);   // 20만원 - 부장이 승인
+        teamLead.approve(800000);   // 80만원 - 이사가 승인
+        teamLead.approve(2000000);  // 200만원 - 승인 불가
+    }
+}
+```
+
+**실행 결과:**
+```
+=== 결재 요청 ===
+✅ 김팀장 승인: 50000원
+➡️ 김팀장 → 상위 결재자로 전달 (200000원)
+✅ 이부장 승인: 200000원
+➡️ 김팀장 → 상위 결재자로 전달 (800000원)
+➡️ 이부장 → 상위 결재자로 전달 (800000원)
+✅ 박이사 승인: 800000원
+➡️ 김팀장 → 상위 결재자로 전달 (2000000원)
+➡️ 이부장 → 상위 결재자로 전달 (2000000원)
+❌ 승인 불가: 2000000원 (한도 초과)
+```
+
+### 핵심 포인트
+```
+1. 각 Handler는 자신이 처리할 수 있으면 처리, 없으면 다음으로 전달
+2. Client는 체인의 첫 번째 Handler만 알면 됨
+3. 새로운 결재자 추가 = 새 클래스 추가 + 체인에 연결 (기존 코드 수정 불필요)
+```
 
 ## 실생활 예제 - 고객 지원 시스템
 
@@ -735,6 +875,279 @@ public class ChainOfResponsibilityDemo {
 }
 ```
 
+## Spring Boot에서의 Chain of Responsibility 패턴
+
+Spring에서는 **Filter Chain**, **Interceptor**, **Security Filter Chain**이 대표적인 책임 연쇄 패턴 구현입니다.
+
+### 1. Spring Security Filter Chain (가장 많이 사용)
+
+Spring Security는 여러 필터가 체인으로 연결되어 요청을 순차 처리합니다.
+
+```java
+// Spring Security 설정 (Filter Chain 구성)
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+            // 각 설정이 필터 체인에 필터를 추가
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/public/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(new CustomLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(new CustomAuditFilter(), UsernamePasswordAuthenticationFilter.class)
+            .build();
+    }
+}
+
+// 커스텀 필터 구현
+public class CustomLoggingFilter extends OncePerRequestFilter {
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
+
+        // 1. 요청 로깅
+        System.out.println("📥 요청: " + request.getMethod() + " " + request.getRequestURI());
+
+        // 2. 다음 필터로 전달 (체인 연결!)
+        filterChain.doFilter(request, response);
+
+        // 3. 응답 로깅
+        System.out.println("📤 응답: " + response.getStatus());
+    }
+}
+```
+
+### 2. Servlet Filter Chain (표준 서블릿)
+
+```java
+// 인증 필터
+@Component
+@Order(1)  // 순서 지정
+public class AuthenticationFilter implements Filter {
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response,
+                        FilterChain chain) throws IOException, ServletException {
+
+        HttpServletRequest httpRequest = (HttpServletRequest) request;
+        String token = httpRequest.getHeader("Authorization");
+
+        if (isValidToken(token)) {
+            System.out.println("✅ 인증 성공");
+            chain.doFilter(request, response);  // 다음 필터로!
+        } else {
+            System.out.println("❌ 인증 실패");
+            ((HttpServletResponse) response).sendError(401, "Unauthorized");
+            // chain.doFilter 호출 안함 → 체인 중단!
+        }
+    }
+
+    private boolean isValidToken(String token) {
+        return token != null && token.startsWith("Bearer ");
+    }
+}
+
+// 로깅 필터
+@Component
+@Order(2)
+public class RequestLoggingFilter implements Filter {
+
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response,
+                        FilterChain chain) throws IOException, ServletException {
+
+        long start = System.currentTimeMillis();
+
+        chain.doFilter(request, response);  // 다음 필터로!
+
+        long duration = System.currentTimeMillis() - start;
+        System.out.println("⏱️ 처리 시간: " + duration + "ms");
+    }
+}
+```
+
+### 3. HandlerInterceptor Chain (Spring MVC)
+
+```java
+// 인터셉터 정의
+@Component
+public class LoggingInterceptor implements HandlerInterceptor {
+
+    @Override
+    public boolean preHandle(HttpServletRequest request,
+                            HttpServletResponse response,
+                            Object handler) throws Exception {
+        System.out.println("🔵 preHandle: " + request.getRequestURI());
+        request.setAttribute("startTime", System.currentTimeMillis());
+        return true;  // true면 다음 인터셉터로, false면 체인 중단
+    }
+
+    @Override
+    public void postHandle(HttpServletRequest request,
+                          HttpServletResponse response,
+                          Object handler,
+                          ModelAndView modelAndView) throws Exception {
+        System.out.println("🟢 postHandle: 컨트롤러 처리 완료");
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request,
+                               HttpServletResponse response,
+                               Object handler, Exception ex) throws Exception {
+        long startTime = (Long) request.getAttribute("startTime");
+        System.out.println("🔴 afterCompletion: " + (System.currentTimeMillis() - startTime) + "ms");
+    }
+}
+
+// 인터셉터 등록 (체인 구성)
+@Configuration
+public class WebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new AuthInterceptor())
+                .order(1)
+                .addPathPatterns("/api/**");
+
+        registry.addInterceptor(new LoggingInterceptor())
+                .order(2)
+                .addPathPatterns("/**");
+
+        registry.addInterceptor(new RateLimitInterceptor())
+                .order(3)
+                .addPathPatterns("/api/**");
+    }
+}
+```
+
+### 4. 비즈니스 로직에서 직접 구현
+
+```java
+// 주문 검증 핸들러 인터페이스
+public interface OrderValidationHandler {
+    void setNext(OrderValidationHandler next);
+    void validate(Order order) throws ValidationException;
+}
+
+// 추상 핸들러
+public abstract class AbstractOrderValidator implements OrderValidationHandler {
+    protected OrderValidationHandler nextHandler;
+
+    @Override
+    public void setNext(OrderValidationHandler next) {
+        this.nextHandler = next;
+    }
+
+    protected void passToNext(Order order) throws ValidationException {
+        if (nextHandler != null) {
+            nextHandler.validate(order);
+        }
+    }
+}
+
+// 재고 검증
+@Component
+@Order(1)
+public class StockValidator extends AbstractOrderValidator {
+    private final InventoryService inventoryService;
+
+    @Override
+    public void validate(Order order) throws ValidationException {
+        if (!inventoryService.hasStock(order.getProductId(), order.getQuantity())) {
+            throw new ValidationException("재고 부족");
+        }
+        System.out.println("✅ 재고 검증 통과");
+        passToNext(order);  // 다음 핸들러로!
+    }
+}
+
+// 결제 검증
+@Component
+@Order(2)
+public class PaymentValidator extends AbstractOrderValidator {
+    private final PaymentService paymentService;
+
+    @Override
+    public void validate(Order order) throws ValidationException {
+        if (!paymentService.canProcess(order.getPaymentMethod())) {
+            throw new ValidationException("결제 수단 사용 불가");
+        }
+        System.out.println("✅ 결제 검증 통과");
+        passToNext(order);
+    }
+}
+
+// 배송 검증
+@Component
+@Order(3)
+public class ShippingValidator extends AbstractOrderValidator {
+    private final ShippingService shippingService;
+
+    @Override
+    public void validate(Order order) throws ValidationException {
+        if (!shippingService.canDeliver(order.getAddress())) {
+            throw new ValidationException("배송 불가 지역");
+        }
+        System.out.println("✅ 배송 검증 통과");
+        passToNext(order);
+    }
+}
+
+// 체인 구성 및 사용
+@Service
+public class OrderValidationService {
+    private final OrderValidationHandler validationChain;
+
+    @Autowired
+    public OrderValidationService(List<AbstractOrderValidator> validators) {
+        // Spring이 @Order 순서대로 주입한 validators로 체인 구성
+        for (int i = 0; i < validators.size() - 1; i++) {
+            validators.get(i).setNext(validators.get(i + 1));
+        }
+        this.validationChain = validators.get(0);
+    }
+
+    public void validateOrder(Order order) throws ValidationException {
+        validationChain.validate(order);
+        System.out.println("🎉 모든 검증 통과!");
+    }
+}
+```
+
+### 5. Spring에서 Chain of Responsibility가 사용되는 곳
+
+| Spring 기능 | 설명 |
+|------------|------|
+| `Filter` / `FilterChain` | 서블릿 요청/응답 처리 체인 |
+| `HandlerInterceptor` | Spring MVC 전처리/후처리 체인 |
+| `Security Filter Chain` | 인증/인가 필터 체인 |
+| `@ControllerAdvice` | 예외 처리 핸들러 체인 |
+| `MessageConverter` | HTTP 메시지 변환 체인 |
+
+### Filter vs Interceptor 비교
+
+```
+┌─────────────────┬────────────────────┬────────────────────┐
+│                 │ Filter             │ Interceptor        │
+├─────────────────┼────────────────────┼────────────────────┤
+│ 위치            │ Servlet 레벨       │ Spring MVC 레벨    │
+│ 실행 시점       │ DispatcherServlet  │ Controller 전/후   │
+│                 │ 전/후              │                    │
+│ Spring Bean     │ @Component 가능    │ 기본 Spring Bean   │
+│ 주 용도         │ 인코딩, 보안, 로깅 │ 인증, 로깅, 권한   │
+│ 예외 처리       │ 직접 처리          │ @ControllerAdvice  │
+└─────────────────┴────────────────────┴────────────────────┘
+```
+
 ## 장점
 
 - **결합도 감소**: 요청 송신자와 수신자가 서로를 직접 알 필요가 없습니다.
@@ -749,3 +1162,46 @@ public class ChainOfResponsibilityDemo {
 - **성능 오버헤드**: 체인이 길어지면 모든 핸들러를 거쳐야 하므로 성능이 저하될 수 있습니다.
 - **디버깅 어려움**: 어떤 핸들러가 요청을 처리했는지 추적하기 어려울 수 있습니다.
 - **체인 구성 복잡성**: 적절한 체인을 구성하는 것이 복잡할 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Decorator** | 둘 다 체인 구조. Decorator는 기능 추가, CoR은 요청 처리 분배 |
+| **Composite** | Composite 트리 구조에서 요청을 부모로 전달할 때 CoR 사용 가능 |
+| **Command** | Command 객체를 체인으로 전달하여 처리할 수 있음 |
+
+### Chain of Responsibility vs Decorator
+
+```
+Chain of Responsibility:
+├─ 목적: 요청을 처리할 객체 찾기
+├─ 처리: 하나의 핸들러만 처리 (처리 후 체인 종료 가능)
+└─ 예: 결재 승인, 예외 처리
+
+Decorator:
+├─ 목적: 기능을 점진적으로 추가
+├─ 처리: 모든 데코레이터가 순차적으로 기능 추가
+└─ 예: 스트림 래핑, 로깅 추가
+
+// Chain of Responsibility - 처리되면 끝
+if (canHandle(request)) {
+    process(request);
+    return;  // 여기서 종료!
+}
+nextHandler.handle(request);
+
+// Decorator - 계속 전달
+preProcess(request);
+wrapped.handle(request);  // 항상 전달
+postProcess(request);
+```
+
+### 실무에서의 선택 기준
+```
+요청을 누가 처리할지 런타임에 결정 → Chain of Responsibility
+  예: 에러 핸들링, 권한 체크, 결재 승인
+
+모든 단계가 순차적으로 처리해야 함 → Decorator 또는 단순 체인
+  예: 로깅, 캐싱, 압축
+```

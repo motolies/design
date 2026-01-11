@@ -4,6 +4,31 @@
 
 Flyweight 패턴은 많은 수의 객체를 효율적으로 지원하기 위해 메모리 사용을 최소화하는 구조 패턴입니다. 객체의 내재적 상태(intrinsic state)를 공유하고 외재적 상태(extrinsic state)를 별도로 관리하여 메모리 사용량을 줄입니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 공통 데이터를 **공유**하여 메모리 절약 |
+| **비유** | 체스 게임 - 말의 이미지는 공유, 위치만 개별 저장 |
+| **언제** | 유사한 객체가 수천~수만 개 필요할 때 |
+| **Spring** | `@Cacheable`, String Pool, Integer Cache |
+
+### 핵심 개념: 상태 분리
+```
+객체 상태를 두 가지로 분리:
+
+내재적 상태 (Intrinsic)     외재적 상태 (Extrinsic)
+├── 공유 가능               ├── 공유 불가
+├── 변하지 않음             ├── 상황마다 다름
+├── Flyweight에 저장        ├── Context에 저장
+└── 예: 폰트, 색상, 이미지   └── 예: 위치, 크기
+
+100만 개 문자 렌더링 시:
+- Flyweight 없이: 100만 개 폰트 정보 저장
+- Flyweight 사용: 26개 알파벳 + 100만 개 위치 정보
+→ 메모리 수십 배 절약!
+```
+
 ## 구조
 
 ```mermaid
@@ -57,6 +82,55 @@ classDiagram
 - **FlyweightFactory**: 플라이웨이트 인스턴스를 생성하고 관리하는 팩토리입니다.
 - **Context**: 외재적 상태와 플라이웨이트 참조를 저장합니다.
 
+## 동작 흐름
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Factory as FlyweightFactory
+    participant Cache as Cache (Map)
+    participant Flyweight
+
+    Client->>Factory: getFlyweight("A")
+    Factory->>Cache: 캐시 확인
+    Cache-->>Factory: 없음
+
+    Factory->>Flyweight: new Flyweight("A")
+    Factory->>Cache: 캐시에 저장
+    Factory-->>Client: Flyweight 반환
+
+    Note over Client: 외재적 상태와 함께 사용
+    Client->>Flyweight: operation(위치, 크기)
+
+    Client->>Factory: getFlyweight("A")
+    Factory->>Cache: 캐시 확인
+    Cache-->>Factory: 있음!
+    Factory-->>Client: 캐시된 Flyweight 반환
+
+    Note over Client,Flyweight: 같은 Flyweight 재사용!
+```
+
+### 메모리 절약 원리
+
+```mermaid
+sequenceDiagram
+    participant App as 애플리케이션
+    participant Factory as FlyweightFactory
+    participant Memory as 메모리
+
+    Note over App,Memory: 10,000개 문자 렌더링
+
+    App->>Factory: 'A' 문자 1,000개 요청
+    Factory->>Memory: Flyweight 1개 생성
+    Factory-->>App: 같은 Flyweight 1,000번 반환
+
+    App->>Factory: 'B' 문자 500개 요청
+    Factory->>Memory: Flyweight 1개 생성
+    Factory-->>App: 같은 Flyweight 500번 반환
+
+    Note over Memory: 총 Flyweight: 26개 (알파벳)<br/>위치 정보: 10,000개<br/>→ 메모리 99% 절약!
+```
+
 ## 내재적 상태 vs 외재적 상태
 
 ### 내재적 상태 (Intrinsic State)
@@ -86,6 +160,105 @@ classDiagram
 ### 4. 아이콘 시스템
 - 아이콘 이미지는 내재적 상태
 - 화면에서의 위치, 크기는 외재적 상태
+
+## 초급 예제: 나무 심기 게임
+
+수천 그루의 나무를 그리는 게임을 상상해보세요. 각 나무마다 이미지를 저장하면 메모리가 부족합니다.
+
+```java
+import java.util.*;
+
+// 1. Flyweight - 공유되는 나무 타입 (내재적 상태)
+class TreeType {
+    private String name;      // 나무 이름
+    private String texture;   // 텍스처 이미지 (용량 큼!)
+
+    public TreeType(String name, String texture) {
+        this.name = name;
+        this.texture = texture;
+        System.out.println("🌲 새 나무 타입 생성: " + name);
+    }
+
+    public void draw(int x, int y) {
+        System.out.println("  " + name + " 그리기 at (" + x + "," + y + ")");
+    }
+}
+
+// 2. Flyweight Factory - 나무 타입 캐시
+class TreeFactory {
+    private static Map<String, TreeType> cache = new HashMap<>();
+
+    public static TreeType getTreeType(String name) {
+        if (!cache.containsKey(name)) {
+            cache.put(name, new TreeType(name, name + "_texture.png"));
+        }
+        return cache.get(name);
+    }
+
+    public static int getCacheSize() { return cache.size(); }
+}
+
+// 3. Context - 개별 나무 (외재적 상태: 위치)
+class Tree {
+    private int x, y;           // 외재적 상태
+    private TreeType type;      // Flyweight 참조
+
+    public Tree(int x, int y, TreeType type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+    }
+
+    public void draw() {
+        type.draw(x, y);
+    }
+}
+
+// 4. 사용 예제
+public class FlyweightDemo {
+    public static void main(String[] args) {
+        List<Tree> forest = new ArrayList<>();
+
+        // 1000그루 나무 심기 (3가지 타입만 생성됨!)
+        String[] types = {"소나무", "참나무", "단풍나무"};
+
+        for (int i = 0; i < 10; i++) {
+            String typeName = types[i % 3];
+            TreeType type = TreeFactory.getTreeType(typeName);
+            forest.add(new Tree(i * 10, i * 5, type));
+        }
+
+        System.out.println("\n--- 숲 그리기 ---");
+        forest.forEach(Tree::draw);
+
+        System.out.println("\n📊 통계:");
+        System.out.println("총 나무 수: " + forest.size());
+        System.out.println("생성된 TreeType 수: " + TreeFactory.getCacheSize());
+    }
+}
+```
+
+**실행 결과:**
+```
+🌲 새 나무 타입 생성: 소나무
+🌲 새 나무 타입 생성: 참나무
+🌲 새 나무 타입 생성: 단풍나무
+
+--- 숲 그리기 ---
+  소나무 그리기 at (0,0)
+  참나무 그리기 at (10,5)
+  단풍나무 그리기 at (20,10)
+  ...
+
+📊 통계:
+총 나무 수: 10
+생성된 TreeType 수: 3
+```
+
+**핵심 포인트:**
+- `TreeType`: 무거운 데이터(텍스처) 포함 → 공유
+- `Tree`: 가벼운 데이터(위치) 포함 → 개별 저장
+- 1000그루를 그려도 `TreeType`은 3개만 생성!
 
 ## 복잡한 실생활 예제: 대규모 온라인 게임의 파티클 시스템
 
@@ -592,6 +765,271 @@ public class IntegerCacheExample {
 }
 ```
 
+## Spring Boot에서의 Flyweight 패턴
+
+### 1. @Cacheable을 이용한 Flyweight 구현
+
+```java
+// Flyweight - 상품 상세 정보 (무거운 데이터)
+@Getter @Setter
+public class ProductDetail {
+    private String description;      // 상품 설명
+    private List<String> images;     // 이미지 URL 목록
+    private Map<String, String> specs;  // 상세 스펙
+    // ... 용량이 큰 데이터들
+}
+
+// Flyweight Factory 역할 - Spring Cache 활용
+@Service
+@RequiredArgsConstructor
+public class ProductDetailService {
+    private final ProductRepository productRepository;
+
+    @Cacheable(value = "productDetails", key = "#productId")
+    public ProductDetail getProductDetail(Long productId) {
+        System.out.println("📦 DB에서 상품 상세 로딩: " + productId);
+        // 비용이 큰 DB 조회
+        return productRepository.findDetailById(productId);
+    }
+}
+
+// Context - 사용자별 장바구니 항목 (외재적 상태)
+@Entity
+@Getter @Setter
+public class CartItem {
+    @Id @GeneratedValue
+    private Long id;
+
+    private Long productId;    // Flyweight 참조
+    private int quantity;      // 외재적 상태
+    private Long userId;       // 외재적 상태
+}
+
+// 사용하는 서비스
+@Service
+@RequiredArgsConstructor
+public class CartService {
+    private final ProductDetailService productDetailService;
+    private final CartItemRepository cartItemRepository;
+
+    public CartItemDto getCartItemWithDetail(Long cartItemId) {
+        CartItem item = cartItemRepository.findById(cartItemId)
+            .orElseThrow();
+
+        // 캐시된 상품 정보 재사용 (Flyweight)
+        ProductDetail detail = productDetailService.getProductDetail(
+            item.getProductId());
+
+        return new CartItemDto(item, detail);
+    }
+}
+```
+
+### 2. 아이콘/에셋 캐시 서비스
+
+```java
+// Flyweight - 아이콘 데이터
+@Getter
+public class IconData {
+    private final String name;
+    private final byte[] imageBytes;  // 실제 이미지 데이터 (무거움)
+    private final String mimeType;
+
+    public IconData(String name, byte[] imageBytes, String mimeType) {
+        this.name = name;
+        this.imageBytes = imageBytes;
+        this.mimeType = mimeType;
+        System.out.println("🖼️ 아이콘 로드: " + name);
+    }
+}
+
+// Flyweight Factory
+@Component
+public class IconCache {
+    private final Map<String, IconData> cache = new ConcurrentHashMap<>();
+
+    @Value("${icons.path}")
+    private String iconBasePath;
+
+    public IconData getIcon(String iconName) {
+        return cache.computeIfAbsent(iconName, this::loadIcon);
+    }
+
+    private IconData loadIcon(String iconName) {
+        // 파일 시스템에서 로드 (비용 큼)
+        byte[] bytes = Files.readAllBytes(
+            Path.of(iconBasePath, iconName + ".png"));
+        return new IconData(iconName, bytes, "image/png");
+    }
+
+    public int getCacheSize() {
+        return cache.size();
+    }
+
+    @Scheduled(fixedRate = 3600000) // 1시간마다
+    public void reportCacheStats() {
+        System.out.println("📊 아이콘 캐시 크기: " + cache.size());
+    }
+}
+
+// 컨트롤러
+@RestController
+@RequestMapping("/api/icons")
+@RequiredArgsConstructor
+public class IconController {
+    private final IconCache iconCache;
+
+    @GetMapping("/{name}")
+    public ResponseEntity<byte[]> getIcon(@PathVariable String name) {
+        IconData icon = iconCache.getIcon(name);
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(icon.getMimeType()))
+            .body(icon.getImageBytes());
+    }
+}
+```
+
+### 3. 공통 코드 캐시 (코드 테이블)
+
+```java
+// Flyweight - 공통 코드 (자주 사용되는 참조 데이터)
+@Entity
+@Getter
+@Table(name = "common_code")
+public class CommonCode {
+    @Id
+    private String code;
+    private String name;
+    private String groupCode;
+    private String description;
+    private int sortOrder;
+}
+
+// Flyweight Factory
+@Service
+@RequiredArgsConstructor
+public class CommonCodeService {
+    private final CommonCodeRepository repository;
+
+    // 그룹별 코드 캐시
+    private final Map<String, List<CommonCode>> groupCache =
+        new ConcurrentHashMap<>();
+
+    // 개별 코드 캐시
+    private final Map<String, CommonCode> codeCache =
+        new ConcurrentHashMap<>();
+
+    @PostConstruct
+    public void initCache() {
+        System.out.println("📋 공통 코드 캐시 초기화 시작");
+        List<CommonCode> allCodes = repository.findAll();
+
+        // 개별 코드 캐시
+        allCodes.forEach(code ->
+            codeCache.put(code.getCode(), code));
+
+        // 그룹별 캐시
+        allCodes.stream()
+            .collect(Collectors.groupingBy(CommonCode::getGroupCode))
+            .forEach(groupCache::put);
+
+        System.out.println("✅ 캐시 완료: " + codeCache.size() + "개 코드");
+    }
+
+    public CommonCode getCode(String code) {
+        return codeCache.get(code);
+    }
+
+    public List<CommonCode> getCodesByGroup(String groupCode) {
+        return groupCache.getOrDefault(groupCode, Collections.emptyList());
+    }
+
+    public String getCodeName(String code) {
+        CommonCode cc = codeCache.get(code);
+        return cc != null ? cc.getName() : code;
+    }
+}
+
+// 주문에서 사용 - 상태 코드를 Flyweight로 참조
+@Entity
+@Getter @Setter
+public class Order {
+    @Id @GeneratedValue
+    private Long id;
+
+    private String statusCode;  // "ORDER_STATUS_01" 같은 코드 저장
+    // ... 다른 필드들
+
+    @Transient
+    public String getStatusName(CommonCodeService codeService) {
+        return codeService.getCodeName(statusCode);
+    }
+}
+```
+
+### 4. 폰트/스타일 캐시
+
+```java
+// Flyweight - 스타일 정의
+@Getter
+public class TextStyle {
+    private final String fontFamily;
+    private final int fontSize;
+    private final String color;
+    private final boolean bold;
+    private final boolean italic;
+
+    public TextStyle(String fontFamily, int fontSize, String color,
+                     boolean bold, boolean italic) {
+        this.fontFamily = fontFamily;
+        this.fontSize = fontSize;
+        this.color = color;
+        this.bold = bold;
+        this.italic = italic;
+        System.out.println("🎨 스타일 생성: " + this);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s %dpx %s%s%s",
+            fontFamily, fontSize, color,
+            bold ? " bold" : "", italic ? " italic" : "");
+    }
+}
+
+// Flyweight Factory
+@Component
+public class TextStyleFactory {
+    private final Map<String, TextStyle> styles = new ConcurrentHashMap<>();
+
+    public TextStyle getStyle(String fontFamily, int fontSize, String color,
+                              boolean bold, boolean italic) {
+        String key = String.format("%s-%d-%s-%b-%b",
+            fontFamily, fontSize, color, bold, italic);
+
+        return styles.computeIfAbsent(key,
+            k -> new TextStyle(fontFamily, fontSize, color, bold, italic));
+    }
+
+    // 미리 정의된 스타일
+    public TextStyle getHeadingStyle() {
+        return getStyle("Arial", 24, "#333333", true, false);
+    }
+
+    public TextStyle getBodyStyle() {
+        return getStyle("Roboto", 14, "#666666", false, false);
+    }
+
+    public TextStyle getCaptionStyle() {
+        return getStyle("Roboto", 12, "#999999", false, true);
+    }
+
+    public int getStyleCount() {
+        return styles.size();
+    }
+}
+```
+
 ## 장점
 
 - **메모리 절약**: 많은 객체의 공통 부분을 공유하여 메모리 사용량을 크게 줄입니다.
@@ -604,11 +1042,43 @@ public class IntegerCacheExample {
 - **외재적 상태 관리**: 클라이언트가 외재적 상태를 관리해야 하는 부담이 있습니다.
 - **동기화 고려**: 멀티스레드 환경에서는 Flyweight Factory의 스레드 안전성을 고려해야 합니다.
 
-## 다른 패턴과의 관계
+## 관련 패턴
 
-- **Singleton**: FlyweightFactory는 보통 Singleton으로 구현됩니다.
-- **Factory Method**: Flyweight 객체 생성에 Factory Method 패턴이 사용될 수 있습니다.
-- **Composite**: Flyweight를 Composite 패턴의 잎(leaf) 노드로 사용할 수 있습니다.
+| 패턴 | 관계 | 비교 |
+|------|------|------|
+| **Singleton** | 조합 | FlyweightFactory는 보통 Singleton으로 구현 |
+| **Factory Method** | 조합 | Flyweight 생성 시 Factory Method 사용 가능 |
+| **Composite** | 조합 | Composite의 리프 노드를 Flyweight로 구현 |
+| **Prototype** | 대안 | Prototype은 복제, Flyweight는 공유 |
+
+### Flyweight vs Singleton vs Prototype
+
+```java
+// Singleton: 오직 하나만 존재
+class AppConfig {
+    private static final AppConfig INSTANCE = new AppConfig();
+    public static AppConfig getInstance() { return INSTANCE; }
+}
+
+// Prototype: 복제하여 새 객체 생성
+class Monster {
+    public Monster clone() { return new Monster(this); }
+}
+
+// Flyweight: 같은 타입 공유, 상태는 분리
+class TreeType {  // 공유됨 (예: 소나무, 참나무)
+    private String texture;
+}
+class Tree {  // 개별 (예: 위치 정보)
+    private TreeType type;  // 참조
+    private int x, y;
+}
+```
+
+**선택 기준:**
+- 시스템에 하나만 필요 → **Singleton**
+- 복제해서 수정 필요 → **Prototype**
+- 공통 데이터 공유 + 개별 데이터 분리 → **Flyweight**
 
 ## 언제 사용할까?
 

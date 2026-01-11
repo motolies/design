@@ -4,6 +4,23 @@
 
 커맨드 패턴은 요청을 객체로 캡슐화하여 다른 객체들을 서로 다른 요청, 큐, 로그 요청으로 매개변수화할 수 있게 해주는 행동 디자인 패턴입니다. 또한 실행 취소(undo) 기능을 지원할 수 있습니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 요청(행동)을 객체로 만들어 저장·취소·재실행 가능하게 |
+| **비유** | 식당에서 주문서를 작성하는 것 - 주문서(Command)가 주방(Receiver)에 전달되어 요리 실행 |
+| **언제** | 실행 취소(Undo), 작업 큐, 매크로 기능이 필요할 때 |
+| **Spring** | `@Async`, `@Scheduled`, `TransactionTemplate`, 이벤트 기반 처리 |
+
+### 핵심 구성요소
+```
+Client       → 명령 객체를 생성하고 Invoker에 전달
+Command      → 실행할 작업을 캡슐화한 인터페이스 (execute, undo)
+Invoker      → 명령을 저장하고 실행을 요청 (리모컨, 버튼)
+Receiver     → 실제 작업을 수행하는 객체 (조명, 에어컨)
+```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -49,6 +66,34 @@ classDiagram
     note for Receiver "실제 작업을 수행하는 객체"
 ```
 
+## 동작 흐름 (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    participant Client as 👤 Client
+    participant Invoker as 📱 Invoker (리모컨)
+    participant Command as 📋 Command
+    participant Receiver as 💡 Receiver (조명)
+
+    Note over Client,Receiver: 1. 명령 설정 단계
+    Client->>Command: new LightOnCommand(light)
+    Client->>Invoker: setCommand(lightOnCommand)
+
+    Note over Client,Receiver: 2. 명령 실행 단계
+    Client->>Invoker: pressButton()
+    Invoker->>Command: execute()
+    Command->>Receiver: turnOn()
+    Receiver-->>Command: 조명 켜짐
+    Command-->>Invoker: 실행 완료
+    Invoker->>Invoker: lastCommand = command
+
+    Note over Client,Receiver: 3. 실행 취소 단계
+    Client->>Invoker: pressUndoButton()
+    Invoker->>Command: undo()
+    Command->>Receiver: turnOff()
+    Receiver-->>Command: 조명 꺼짐
+```
+
 ## 사용 이유
 
 - **요청 캡슐화**: 요청자와 수신자를 분리하여 요청을 객체로 캡슐화합니다.
@@ -90,6 +135,116 @@ interface BankCommand {
 class TransferCommand implements BankCommand {
     // 트랜잭션 단위로 실행/롤백 가능
 }
+```
+
+## 초급 예제 - 텍스트 편집기 Undo (5분 이해)
+
+가장 친숙한 Undo 기능을 커맨드 패턴으로 구현합니다.
+
+```java
+import java.util.Stack;
+
+// 1. Command 인터페이스 - 모든 명령의 공통 규약
+interface TextCommand {
+    void execute();  // 실행
+    void undo();     // 취소
+}
+
+// 2. Receiver - 실제 작업을 수행하는 객체
+class TextEditor {
+    private StringBuilder text = new StringBuilder();
+
+    public void insert(String str) {
+        text.append(str);
+        System.out.println("입력: \"" + str + "\" → 현재 텍스트: \"" + text + "\"");
+    }
+
+    public void delete(int length) {
+        if (length <= text.length()) {
+            String deleted = text.substring(text.length() - length);
+            text.delete(text.length() - length, text.length());
+            System.out.println("삭제: \"" + deleted + "\" → 현재 텍스트: \"" + text + "\"");
+        }
+    }
+
+    public String getText() { return text.toString(); }
+}
+
+// 3. Concrete Command - 텍스트 입력 명령
+class InsertCommand implements TextCommand {
+    private TextEditor editor;
+    private String textToInsert;
+
+    public InsertCommand(TextEditor editor, String text) {
+        this.editor = editor;
+        this.textToInsert = text;
+    }
+
+    @Override
+    public void execute() {
+        editor.insert(textToInsert);
+    }
+
+    @Override
+    public void undo() {
+        editor.delete(textToInsert.length());
+    }
+}
+
+// 4. Invoker - 명령 실행 및 히스토리 관리
+class CommandManager {
+    private Stack<TextCommand> history = new Stack<>();
+
+    public void executeCommand(TextCommand command) {
+        command.execute();
+        history.push(command);  // 히스토리에 저장
+    }
+
+    public void undo() {
+        if (!history.isEmpty()) {
+            System.out.print("↩️ Undo: ");
+            history.pop().undo();
+        } else {
+            System.out.println("취소할 작업이 없습니다.");
+        }
+    }
+}
+
+// 5. 사용 예시
+public class TextEditorDemo {
+    public static void main(String[] args) {
+        TextEditor editor = new TextEditor();
+        CommandManager manager = new CommandManager();
+
+        // 텍스트 입력
+        manager.executeCommand(new InsertCommand(editor, "Hello"));
+        manager.executeCommand(new InsertCommand(editor, " World"));
+        manager.executeCommand(new InsertCommand(editor, "!"));
+
+        // Undo 실행
+        manager.undo();  // "!" 삭제
+        manager.undo();  // " World" 삭제
+
+        System.out.println("최종 결과: \"" + editor.getText() + "\"");
+    }
+}
+```
+
+**실행 결과:**
+```
+입력: "Hello" → 현재 텍스트: "Hello"
+입력: " World" → 현재 텍스트: "Hello World"
+입력: "!" → 현재 텍스트: "Hello World!"
+↩️ Undo: 삭제: "!" → 현재 텍스트: "Hello World"
+↩️ Undo: 삭제: " World" → 현재 텍스트: "Hello"
+최종 결과: "Hello"
+```
+
+### 핵심 포인트
+```
+1. Command = 실행할 작업 + 취소할 방법을 하나의 객체로 묶음
+2. 히스토리 = Stack에 명령을 쌓아서 Undo 구현
+3. Invoker = 명령 실행만 담당, 무슨 작업인지는 몰라도 됨
 ```
 
 ## 실생활 예제 - 스마트 홈 제어 시스템
@@ -795,6 +950,350 @@ public class CommandPatternDemo {
 }
 ```
 
+## Spring Boot에서의 Command 패턴
+
+Spring에서 커맨드 패턴은 **비동기 작업 처리**, **트랜잭션 관리**, **이벤트 기반 처리**에 자주 활용됩니다.
+
+### 1. 주문 처리 시스템 (실무 예제)
+
+```java
+// Command 인터페이스
+public interface OrderCommand {
+    void execute();
+    void undo();
+    String getDescription();
+}
+
+// Receiver - 실제 작업 수행
+@Service
+@RequiredArgsConstructor
+public class OrderService {
+    private final OrderRepository orderRepository;
+    private final InventoryService inventoryService;
+    private final PaymentService paymentService;
+
+    public Order createOrder(OrderRequest request) {
+        Order order = Order.from(request);
+        return orderRepository.save(order);
+    }
+
+    public void cancelOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new OrderNotFoundException(orderId));
+        order.cancel();
+        orderRepository.save(order);
+    }
+
+    public void reserveStock(Long orderId) {
+        inventoryService.reserve(orderId);
+    }
+
+    public void releaseStock(Long orderId) {
+        inventoryService.release(orderId);
+    }
+
+    public void processPayment(Long orderId, int amount) {
+        paymentService.charge(orderId, amount);
+    }
+
+    public void refundPayment(Long orderId) {
+        paymentService.refund(orderId);
+    }
+}
+```
+
+```java
+// Concrete Commands - 각 작업을 명령으로 캡슐화
+@Component
+@Scope("prototype")  // 매번 새 인스턴스 생성
+@RequiredArgsConstructor
+public class CreateOrderCommand implements OrderCommand {
+    private final OrderService orderService;
+    private OrderRequest request;
+    private Order createdOrder;
+
+    public CreateOrderCommand init(OrderRequest request) {
+        this.request = request;
+        return this;
+    }
+
+    @Override
+    public void execute() {
+        createdOrder = orderService.createOrder(request);
+    }
+
+    @Override
+    public void undo() {
+        if (createdOrder != null) {
+            orderService.cancelOrder(createdOrder.getId());
+        }
+    }
+
+    @Override
+    public String getDescription() {
+        return "주문 생성: " + request.getProductName();
+    }
+
+    public Order getCreatedOrder() {
+        return createdOrder;
+    }
+}
+
+@Component
+@Scope("prototype")
+@RequiredArgsConstructor
+public class ReserveStockCommand implements OrderCommand {
+    private final OrderService orderService;
+    private Long orderId;
+
+    public ReserveStockCommand init(Long orderId) {
+        this.orderId = orderId;
+        return this;
+    }
+
+    @Override
+    public void execute() {
+        orderService.reserveStock(orderId);
+    }
+
+    @Override
+    public void undo() {
+        orderService.releaseStock(orderId);
+    }
+
+    @Override
+    public String getDescription() {
+        return "재고 예약: 주문 " + orderId;
+    }
+}
+
+@Component
+@Scope("prototype")
+@RequiredArgsConstructor
+public class ProcessPaymentCommand implements OrderCommand {
+    private final OrderService orderService;
+    private Long orderId;
+    private int amount;
+
+    public ProcessPaymentCommand init(Long orderId, int amount) {
+        this.orderId = orderId;
+        this.amount = amount;
+        return this;
+    }
+
+    @Override
+    public void execute() {
+        orderService.processPayment(orderId, amount);
+    }
+
+    @Override
+    public void undo() {
+        orderService.refundPayment(orderId);
+    }
+
+    @Override
+    public String getDescription() {
+        return "결제 처리: " + amount + "원";
+    }
+}
+```
+
+```java
+// Invoker - 명령 실행 및 트랜잭션 관리
+@Service
+@Slf4j
+public class OrderCommandInvoker {
+    private final Deque<OrderCommand> executedCommands = new ArrayDeque<>();
+
+    /**
+     * 여러 명령을 순차 실행하고, 실패 시 자동 롤백
+     */
+    @Transactional
+    public void executeWithRollback(List<OrderCommand> commands) {
+        try {
+            for (OrderCommand command : commands) {
+                log.info("실행: {}", command.getDescription());
+                command.execute();
+                executedCommands.push(command);
+            }
+            log.info("✅ 모든 명령 실행 완료");
+        } catch (Exception e) {
+            log.error("❌ 명령 실행 실패: {}", e.getMessage());
+            rollbackAll();
+            throw new OrderProcessingException("주문 처리 실패", e);
+        }
+    }
+
+    /**
+     * 실행된 명령을 역순으로 취소
+     */
+    private void rollbackAll() {
+        log.info("↩️ 롤백 시작 (실행된 명령 수: {})", executedCommands.size());
+        while (!executedCommands.isEmpty()) {
+            OrderCommand command = executedCommands.pop();
+            try {
+                log.info("취소: {}", command.getDescription());
+                command.undo();
+            } catch (Exception e) {
+                log.error("롤백 실패: {}", command.getDescription(), e);
+            }
+        }
+        log.info("✅ 롤백 완료");
+    }
+
+    public void clearHistory() {
+        executedCommands.clear();
+    }
+}
+```
+
+```java
+// 실제 사용 - OrderFacade에서 명령 조합
+@Service
+@RequiredArgsConstructor
+public class OrderFacade {
+    private final OrderCommandInvoker invoker;
+    private final ObjectProvider<CreateOrderCommand> createOrderProvider;
+    private final ObjectProvider<ReserveStockCommand> reserveStockProvider;
+    private final ObjectProvider<ProcessPaymentCommand> paymentProvider;
+
+    public Order placeOrder(OrderRequest request) {
+        // 명령 객체들 생성
+        CreateOrderCommand createOrder = createOrderProvider.getObject().init(request);
+
+        // 먼저 주문 생성 실행
+        createOrder.execute();
+        Long orderId = createOrder.getCreatedOrder().getId();
+
+        // 나머지 명령들 준비
+        List<OrderCommand> commands = List.of(
+            reserveStockProvider.getObject().init(orderId),
+            paymentProvider.getObject().init(orderId, request.getTotalAmount())
+        );
+
+        // 트랜잭션 단위로 실행 (실패 시 자동 롤백)
+        invoker.executeWithRollback(commands);
+
+        return createOrder.getCreatedOrder();
+    }
+}
+```
+
+### 2. @Async와 함께 사용하기 (비동기 명령 큐)
+
+```java
+// 비동기 명령 인터페이스
+public interface AsyncCommand {
+    CompletableFuture<Void> executeAsync();
+    String getCommandId();
+}
+
+// 이메일 발송 명령
+@Component
+@Scope("prototype")
+@RequiredArgsConstructor
+public class SendEmailCommand implements AsyncCommand {
+    private final EmailService emailService;
+    private String to;
+    private String subject;
+    private String body;
+    private final String commandId = UUID.randomUUID().toString();
+
+    public SendEmailCommand init(String to, String subject, String body) {
+        this.to = to;
+        this.subject = subject;
+        this.body = body;
+        return this;
+    }
+
+    @Override
+    @Async("emailTaskExecutor")  // 비동기 실행
+    public CompletableFuture<Void> executeAsync() {
+        emailService.send(to, subject, body);
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public String getCommandId() {
+        return commandId;
+    }
+}
+
+// 비동기 명령 큐 관리자
+@Service
+@Slf4j
+public class AsyncCommandQueue {
+    private final BlockingQueue<AsyncCommand> queue = new LinkedBlockingQueue<>();
+    private final Map<String, CommandStatus> statusMap = new ConcurrentHashMap<>();
+
+    public String enqueue(AsyncCommand command) {
+        queue.offer(command);
+        statusMap.put(command.getCommandId(), CommandStatus.PENDING);
+        log.info("명령 큐에 추가: {}", command.getCommandId());
+        return command.getCommandId();
+    }
+
+    @Scheduled(fixedDelay = 1000)  // 1초마다 큐 처리
+    public void processQueue() {
+        AsyncCommand command = queue.poll();
+        if (command != null) {
+            statusMap.put(command.getCommandId(), CommandStatus.RUNNING);
+            command.executeAsync()
+                .thenRun(() -> statusMap.put(command.getCommandId(), CommandStatus.COMPLETED))
+                .exceptionally(e -> {
+                    statusMap.put(command.getCommandId(), CommandStatus.FAILED);
+                    return null;
+                });
+        }
+    }
+
+    public CommandStatus getStatus(String commandId) {
+        return statusMap.getOrDefault(commandId, CommandStatus.UNKNOWN);
+    }
+}
+```
+
+### 3. Spring에서 커맨드 패턴이 사용되는 곳
+
+| Spring 기능 | 커맨드 패턴 적용 |
+|------------|-----------------|
+| `@Async` | 메서드 호출을 비동기 태스크(Command)로 캡슐화 |
+| `@Scheduled` | 스케줄된 작업을 Command로 관리 |
+| `TransactionTemplate` | 트랜잭션 내 작업을 Command로 캡슐화 |
+| `JdbcTemplate.execute(callback)` | SQL 실행을 Command 콜백으로 전달 |
+| `ApplicationEvent` | 이벤트를 Command처럼 발행/처리 |
+
+### Spring 패턴 활용 팁
+
+```java
+// 1. @Scope("prototype")으로 매번 새 Command 인스턴스 생성
+@Component
+@Scope("prototype")
+public class MyCommand implements Command { ... }
+
+// 2. ObjectProvider로 프로토타입 빈 주입
+@RequiredArgsConstructor
+public class CommandClient {
+    private final ObjectProvider<MyCommand> commandProvider;
+
+    public void doSomething() {
+        MyCommand cmd = commandProvider.getObject();  // 새 인스턴스
+    }
+}
+
+// 3. @Async + CompletableFuture로 비동기 명령
+@Async
+public CompletableFuture<Result> executeAsync() {
+    // 비동기 실행
+}
+
+// 4. @Transactional + 롤백으로 안전한 명령 실행
+@Transactional
+public void executeWithRollback(List<Command> commands) {
+    // 실패 시 자동 롤백
+}
+```
+
 ## 장점
 
 - **요청자와 수신자 분리**: 요청을 보내는 객체와 처리하는 객체를 분리합니다.
@@ -808,3 +1307,28 @@ public class CommandPatternDemo {
 - **클래스 수 증가**: 각 명령마다 별도의 클래스를 만들어야 하므로 클래스 수가 늘어납니다.
 - **복잡성 증가**: 간단한 동작에 대해서도 명령 객체를 만들어야 하므로 코드가 복잡해질 수 있습니다.
 - **메모리 사용량**: 명령 기록을 저장하면 메모리 사용량이 증가할 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Memento** | Command와 함께 사용하여 Undo를 구현. Command는 "무엇을 했는지", Memento는 "이전 상태"를 저장 |
+| **Strategy** | 둘 다 객체로 행동을 캡슐화하지만, Strategy는 같은 목적의 다른 알고리즘, Command는 다른 목적의 다른 요청 |
+| **Chain of Responsibility** | Command를 핸들러 체인으로 전달하여 처리할 수 있음 |
+| **Composite** | MacroCommand처럼 여러 Command를 트리 구조로 조합 |
+| **Prototype** | Command 객체를 복제하여 히스토리 저장 시 사용 가능 |
+
+### 패턴 비교
+
+```
+Command vs Strategy:
+├─ Command: "무엇을 할지"를 객체로 만듦 (요청의 캡슐화)
+│   예: LightOnCommand, LightOffCommand (다른 요청)
+└─ Strategy: "어떻게 할지"를 객체로 만듦 (알고리즘의 캡슐화)
+    예: QuickSort, MergeSort (같은 목적, 다른 방법)
+
+Command + Memento (Undo 구현):
+├─ Command: execute() 시 Receiver의 현재 상태를 Memento로 저장
+├─ Memento: Receiver의 상태 스냅샷 보관
+└─ undo() 시: 저장된 Memento로 상태 복원
+```

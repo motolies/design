@@ -4,6 +4,35 @@
 
 옵저버 패턴은 한 객체(주제, Subject)의 상태가 변경되면 그 객체에 의존하는 다른 객체(옵저버, Observer)들에게 자동으로 알림을 보내고 업데이트하는 행동 디자인 패턴입니다. 이는 일대다(one-to-many)의 의존 관계를 정의합니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 상태 변경 시 관련된 모든 객체에 자동으로 알림 |
+| **비유** | 유튜브 구독: 새 영상 업로드 → 모든 구독자에게 알림 |
+| **언제** | 이벤트 발생 시 여러 객체가 반응해야 할 때 |
+| **Spring** | `@EventListener`, `ApplicationEvent`, `ApplicationEventPublisher` |
+
+> **💡 주문 완료 시 여러 작업이 필요할 때...**
+>
+> **❌ Before (직접 호출)**
+> ```java
+> orderService.complete() {
+>     emailService.send();        // 이메일
+>     smsService.send();          // SMS
+>     pointService.add();         // 포인트
+>     inventoryService.update();  // 재고
+>     // 새 기능 추가마다 코드 수정!
+> }
+> ```
+>
+> **✅ After (옵저버 패턴)**
+> ```java
+> eventPublisher.publish(OrderCompletedEvent)
+> // ↓ 자동으로 모든 리스너에게 전파
+> // → EmailListener, SmsListener, PointListener, ...
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -50,6 +79,33 @@ classDiagram
     note for Observer "상태 변경에 반응하는 관찰자"
 ```
 
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Subject as Subject<br/>(OrderService)
+    participant Observer1 as Observer 1<br/>(EmailService)
+    participant Observer2 as Observer 2<br/>(PointService)
+    participant Observer3 as Observer 3<br/>(InventoryService)
+
+    Note over Subject,Observer3: 1. 옵저버 등록
+    Observer1->>Subject: registerObserver()
+    Observer2->>Subject: registerObserver()
+    Observer3->>Subject: registerObserver()
+
+    Note over Subject,Observer3: 2. 상태 변경 발생
+    Subject->>Subject: 주문 완료 처리
+
+    Note over Subject,Observer3: 3. 모든 옵저버에게 알림
+    Subject->>Observer1: update(OrderEvent)
+    Subject->>Observer2: update(OrderEvent)
+    Subject->>Observer3: update(OrderEvent)
+
+    Observer1-->>Subject: 이메일 발송 완료
+    Observer2-->>Subject: 포인트 적립 완료
+    Observer3-->>Subject: 재고 감소 완료
+```
+
 ## 사용 이유
 
 - **느슨한 결합**: 주제(Subject)와 옵저버(Observer)는 서로의 구체적인 구현을 알 필요 없이, 추상적인 인터페이스를 통해 상호작용합니다. 이로 인해 두 컴포넌트 간의 결합도가 낮아집니다.
@@ -90,6 +146,327 @@ class UserService extends Subject {
     }
 }
 ```
+
+## 초급 예제 - 5분 만에 이해하기
+
+유튜브 구독 시스템으로 옵저버 패턴을 이해해봅시다.
+
+```java
+// 1단계: 옵저버 인터페이스 (구독자)
+interface Subscriber {
+    void onNewVideo(String videoTitle);
+}
+
+// 2단계: 구체적인 옵저버들 (구독자 종류)
+class EmailSubscriber implements Subscriber {
+    private String email;
+
+    public EmailSubscriber(String email) {
+        this.email = email;
+    }
+
+    @Override
+    public void onNewVideo(String videoTitle) {
+        System.out.println("📧 " + email + "로 알림: 새 영상 '" + videoTitle + "'");
+    }
+}
+
+class AppSubscriber implements Subscriber {
+    private String userId;
+
+    public AppSubscriber(String userId) {
+        this.userId = userId;
+    }
+
+    @Override
+    public void onNewVideo(String videoTitle) {
+        System.out.println("📱 " + userId + "님 앱 알림: 새 영상 '" + videoTitle + "'");
+    }
+}
+
+// 3단계: Subject (유튜브 채널)
+class YouTubeChannel {
+    private String channelName;
+    private List<Subscriber> subscribers = new ArrayList<>();
+
+    public YouTubeChannel(String channelName) {
+        this.channelName = channelName;
+    }
+
+    public void subscribe(Subscriber subscriber) {
+        subscribers.add(subscriber);
+        System.out.println("✅ 새 구독자 등록!");
+    }
+
+    public void unsubscribe(Subscriber subscriber) {
+        subscribers.remove(subscriber);
+        System.out.println("❌ 구독 해제");
+    }
+
+    public void uploadVideo(String title) {
+        System.out.println("\n🎬 " + channelName + " 채널에 새 영상 업로드: " + title);
+        notifySubscribers(title);
+    }
+
+    private void notifySubscribers(String title) {
+        for (Subscriber subscriber : subscribers) {
+            subscriber.onNewVideo(title);
+        }
+    }
+}
+
+// 4단계: 사용
+public class Main {
+    public static void main(String[] args) {
+        YouTubeChannel channel = new YouTubeChannel("코딩 채널");
+
+        // 구독자 등록
+        Subscriber email = new EmailSubscriber("user@example.com");
+        Subscriber app = new AppSubscriber("user123");
+
+        channel.subscribe(email);
+        channel.subscribe(app);
+
+        // 새 영상 업로드 → 모든 구독자에게 자동 알림!
+        channel.uploadVideo("옵저버 패턴 완벽 정리");
+    }
+}
+```
+
+**출력:**
+```
+✅ 새 구독자 등록!
+✅ 새 구독자 등록!
+
+🎬 코딩 채널 채널에 새 영상 업로드: 옵저버 패턴 완벽 정리
+📧 user@example.com로 알림: 새 영상 '옵저버 패턴 완벽 정리'
+📱 user123님 앱 알림: 새 영상 '옵저버 패턴 완벽 정리'
+```
+
+**핵심 포인트:**
+- `YouTubeChannel`(Subject)은 구독자 목록만 관리
+- 새 영상 업로드 시 모든 구독자에게 자동 알림
+- 새로운 알림 방식 추가 = 새 Subscriber 클래스만 추가
+
+---
+
+## Spring Boot 예제
+
+Spring의 이벤트 시스템으로 옵저버 패턴을 구현합니다. **Spring에서는 직접 옵저버 패턴을 구현할 필요 없이 `@EventListener`를 사용합니다!**
+
+### 프로젝트 구조
+```
+src/main/java/com/example/order/
+├── event/
+│   └── OrderCompletedEvent.java    # 이벤트 클래스
+├── listener/
+│   ├── EmailNotificationListener.java
+│   ├── PointAccumulationListener.java
+│   └── InventoryUpdateListener.java
+├── service/
+│   └── OrderService.java           # 이벤트 발행
+└── controller/
+    └── OrderController.java
+```
+
+### 1. 이벤트 클래스 정의
+
+```java
+@Getter
+@AllArgsConstructor
+public class OrderCompletedEvent {
+    private Long orderId;
+    private Long customerId;
+    private int totalAmount;
+    private List<String> productNames;
+    private LocalDateTime orderedAt;
+
+    public OrderCompletedEvent(Long orderId, Long customerId, int totalAmount, List<String> productNames) {
+        this.orderId = orderId;
+        this.customerId = customerId;
+        this.totalAmount = totalAmount;
+        this.productNames = productNames;
+        this.orderedAt = LocalDateTime.now();
+    }
+}
+```
+
+### 2. 이벤트 리스너들 (옵저버)
+
+```java
+@Component
+@Slf4j
+public class EmailNotificationListener {
+
+    @EventListener
+    public void handleOrderCompleted(OrderCompletedEvent event) {
+        log.info("📧 이메일 발송 - 주문 #{}, 고객 #{}, 금액: {}원",
+                event.getOrderId(), event.getCustomerId(), event.getTotalAmount());
+        // 실제로는 메일 서비스 호출
+    }
+}
+
+@Component
+@Slf4j
+public class PointAccumulationListener {
+
+    @EventListener
+    public void handleOrderCompleted(OrderCompletedEvent event) {
+        int points = event.getTotalAmount() / 100;  // 1% 적립
+        log.info("💰 포인트 적립 - 고객 #{}, {}포인트 적립",
+                event.getCustomerId(), points);
+        // 실제로는 포인트 서비스 호출
+    }
+}
+
+@Component
+@Slf4j
+public class InventoryUpdateListener {
+
+    @EventListener
+    public void handleOrderCompleted(OrderCompletedEvent event) {
+        log.info("📦 재고 감소 - 상품: {}",
+                String.join(", ", event.getProductNames()));
+        // 실제로는 재고 서비스 호출
+    }
+}
+
+// 비동기 처리가 필요한 경우
+@Component
+@Slf4j
+public class SmsNotificationListener {
+
+    @Async  // 비동기 처리
+    @EventListener
+    public void handleOrderCompleted(OrderCompletedEvent event) {
+        log.info("📱 SMS 발송 (비동기) - 주문 #{}", event.getOrderId());
+        // 실제로는 SMS API 호출
+    }
+}
+```
+
+### 3. 이벤트 발행 서비스
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class OrderService {
+
+    private final ApplicationEventPublisher eventPublisher;
+
+    public Long completeOrder(Long customerId, int totalAmount, List<String> products) {
+        // 1. 주문 처리 로직
+        Long orderId = saveOrder(customerId, totalAmount, products);
+        log.info("✅ 주문 완료 - 주문 #{}", orderId);
+
+        // 2. 이벤트 발행 → 모든 리스너에게 자동 전파!
+        OrderCompletedEvent event = new OrderCompletedEvent(
+                orderId, customerId, totalAmount, products
+        );
+        eventPublisher.publishEvent(event);
+
+        return orderId;
+    }
+
+    private Long saveOrder(Long customerId, int totalAmount, List<String> products) {
+        // DB 저장 로직
+        return System.currentTimeMillis();  // 임시 ID
+    }
+}
+```
+
+### 4. 컨트롤러
+
+```java
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> createOrder(@RequestBody OrderRequest request) {
+        Long orderId = orderService.completeOrder(
+                request.getCustomerId(),
+                request.getTotalAmount(),
+                request.getProducts()
+        );
+
+        return ResponseEntity.ok(Map.of(
+                "orderId", orderId,
+                "message", "주문이 완료되었습니다."
+        ));
+    }
+}
+
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderRequest {
+    private Long customerId;
+    private int totalAmount;
+    private List<String> products;
+}
+```
+
+### 사용 예시
+
+```bash
+curl -X POST http://localhost:8080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": 1,
+    "totalAmount": 50000,
+    "products": ["노트북 파우치", "무선 마우스"]
+  }'
+```
+
+**출력 로그:**
+```
+✅ 주문 완료 - 주문 #1704123456789
+📧 이메일 발송 - 주문 #1704123456789, 고객 #1, 금액: 50000원
+💰 포인트 적립 - 고객 #1, 500포인트 적립
+📦 재고 감소 - 상품: 노트북 파우치, 무선 마우스
+📱 SMS 발송 (비동기) - 주문 #1704123456789
+```
+
+### 새로운 기능 추가하기
+
+주문 완료 시 슬랙 알림을 추가하려면 **리스너만 추가**:
+
+```java
+@Component
+@Slf4j
+public class SlackNotificationListener {
+
+    @EventListener
+    public void handleOrderCompleted(OrderCompletedEvent event) {
+        log.info("💬 슬랙 알림 - 새 주문 발생! #{}번 주문, {}원",
+                event.getOrderId(), event.getTotalAmount());
+        // 슬랙 API 호출
+    }
+}
+```
+
+**기존 코드 수정 없이** 슬랙 알림이 자동으로 동작!
+
+### 조건부 처리
+
+```java
+@Component
+public class VipNotificationListener {
+
+    @EventListener(condition = "#event.totalAmount >= 100000")
+    public void handleVipOrder(OrderCompletedEvent event) {
+        // 10만원 이상 주문만 처리
+        log.info("🌟 VIP 주문 감지! - 금액: {}원", event.getTotalAmount());
+    }
+}
+```
+
+---
 
 ## 실생활 예제 - 주식 가격 모니터링 시스템
 
@@ -645,3 +1022,38 @@ public class Client {
 - **메모리 누수**: 옵저버가 명시적으로 등록 해제되지 않으면, 주제 객체가 메모리에서 해제되지 않아 메모리 누수가 발생할 수 있습니다.
 - **성능 문제**: 너무 많은 옵저버가 등록되어 있거나 업데이트 로직이 복잡한 경우, 알림을 보내는 과정에서 성능 저하가 발생할 수 있습니다.
 - **순환 의존성**: 옵저버와 주제 간에 복잡한 상호작용이 있을 때 무한 루프가 발생할 수 있습니다.
+
+## 관련 패턴
+
+| 패턴 | 관계 |
+|------|------|
+| **Mediator** | Observer는 직접 통신, Mediator는 중재자를 통한 통신 |
+| **Command** | Observer의 알림을 Command 객체로 전달 가능 |
+| **Strategy** | Observer의 update 로직을 Strategy로 교체 가능 |
+
+### Observer vs Pub-Sub (발행-구독)
+
+```java
+// Observer: Subject가 Observer를 직접 알고 있음
+class Subject {
+    List<Observer> observers;  // 직접 참조
+    void notify() {
+        for (Observer o : observers) o.update();
+    }
+}
+
+// Pub-Sub: Message Broker를 통한 간접 통신
+class Publisher {
+    MessageBroker broker;
+    void publish(String topic, Event e) {
+        broker.publish(topic, e);  // 구독자를 모름
+    }
+}
+```
+
+| 비교 | Observer | Pub-Sub |
+|------|----------|---------|
+| 결합도 | Subject가 Observer 알음 | Publisher는 Subscriber 모름 |
+| 중재자 | 없음 (직접 통신) | Message Broker 필요 |
+| 동기/비동기 | 주로 동기 | 주로 비동기 |
+| 사용 예 | Spring @EventListener | Kafka, RabbitMQ |

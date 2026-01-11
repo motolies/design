@@ -4,6 +4,33 @@
 
 퍼사드 패턴은 복잡한 서브시스템에 대해 간단하고 통일된 인터페이스를 제공하는 구조 디자인 패턴입니다. '퍼사드(Facade)'는 건물의 정면을 의미하며, 복잡한 내부 구조를 가리고 단순한 외부 모습만 보여주는 것처럼, 이 패턴은 복잡한 내부 로직을 숨기고 클라이언트에게 필요한 기능만 노출하는 역할을 합니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 복잡한 서브시스템을 단순한 인터페이스로 감싸기 |
+| **비유** | 호텔 컨시어지: 내부의 복잡한 서비스들을 하나의 창구로 제공 |
+| **언제** | 여러 서비스/모듈을 조합해서 하나의 기능을 제공할 때 |
+| **Spring** | Service Layer가 대표적인 Facade 패턴 (Controller → Service → 여러 Repository) |
+
+> **💡 주문 처리할 때 여러 시스템 호출이 필요...**
+>
+> **❌ Before (복잡한 직접 호출)**
+> ```java
+> inventoryService.check();
+> paymentService.process();
+> shippingService.schedule();
+> notificationService.send();
+> pointService.accumulate();
+> // → 컨트롤러가 너무 많은 것을 알아야 함!
+> ```
+>
+> **✅ After (퍼사드 패턴)**
+> ```java
+> orderFacade.placeOrder(orderRequest);
+> // → 단 한 줄로 모든 복잡한 작업 처리!
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -43,6 +70,36 @@ classDiagram
 
     note for Facade "복잡한 서브시스템을 단순한 인터페이스로 제공"
     note for SubsystemA "실제 작업을 수행하는 복잡한 시스템"
+```
+
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트<br/>(Controller)
+    participant Facade as Facade<br/>(OrderFacade)
+    participant Sub1 as 재고 서비스
+    participant Sub2 as 결제 서비스
+    participant Sub3 as 배송 서비스
+    participant Sub4 as 알림 서비스
+
+    Client->>Facade: placeOrder(request)
+    Note over Facade: 복잡한 로직을 내부에서 처리
+
+    Facade->>Sub1: checkStock()
+    Sub1-->>Facade: 재고 확인 완료
+
+    Facade->>Sub2: processPayment()
+    Sub2-->>Facade: 결제 완료
+
+    Facade->>Sub3: scheduleDelivery()
+    Sub3-->>Facade: 배송 예약 완료
+
+    Facade->>Sub4: sendNotification()
+    Sub4-->>Facade: 알림 발송 완료
+
+    Facade-->>Client: 주문 완료 결과
+    Note over Client: 클라이언트는 단순히<br/>placeOrder만 호출
 ```
 
 ## 사용 이유
@@ -94,6 +151,350 @@ class SystemFacade {
 - **서비스 레이어**: 여러 비즈니스 로직을 조합하는 서비스 인터페이스
 - **API 게이트웨이**: 마이크로서비스들을 하나의 통합된 API로 제공
 - **데이터 액세스 레이어**: 다양한 데이터 소스를 통합된 인터페이스로 제공
+
+## 초급 예제 - 5분 만에 이해하기
+
+컴퓨터 부팅으로 퍼사드 패턴을 이해해봅시다.
+
+```java
+// 복잡한 서브시스템들
+class CPU {
+    public void freeze() { System.out.println("CPU: 프리즈"); }
+    public void jump(long address) { System.out.println("CPU: 주소 " + address + "로 점프"); }
+    public void execute() { System.out.println("CPU: 실행"); }
+}
+
+class Memory {
+    public void load(long address, byte[] data) {
+        System.out.println("Memory: 주소 " + address + "에 데이터 로드");
+    }
+}
+
+class HardDrive {
+    public byte[] read(long sector, int size) {
+        System.out.println("HardDrive: 섹터 " + sector + "에서 " + size + " 바이트 읽기");
+        return new byte[size];
+    }
+}
+
+// 퍼사드: 복잡한 부팅 과정을 단순화
+class ComputerFacade {
+    private CPU cpu;
+    private Memory memory;
+    private HardDrive hardDrive;
+
+    public ComputerFacade() {
+        this.cpu = new CPU();
+        this.memory = new Memory();
+        this.hardDrive = new HardDrive();
+    }
+
+    // 복잡한 부팅 과정을 하나의 메서드로!
+    public void start() {
+        System.out.println("=== 컴퓨터 부팅 시작 ===");
+        cpu.freeze();
+        memory.load(0, hardDrive.read(0, 1024));
+        cpu.jump(0);
+        cpu.execute();
+        System.out.println("=== 부팅 완료 ===");
+    }
+}
+
+// 사용
+public class Main {
+    public static void main(String[] args) {
+        // 클라이언트는 복잡한 내부 과정을 몰라도 됨
+        ComputerFacade computer = new ComputerFacade();
+        computer.start();  // 단 한 줄로 복잡한 부팅 완료!
+    }
+}
+```
+
+**출력:**
+```
+=== 컴퓨터 부팅 시작 ===
+CPU: 프리즈
+HardDrive: 섹터 0에서 1024 바이트 읽기
+Memory: 주소 0에 데이터 로드
+CPU: 주소 0로 점프
+CPU: 실행
+=== 부팅 완료 ===
+```
+
+**핵심 포인트:**
+- `ComputerFacade`가 CPU, Memory, HardDrive의 복잡한 조합을 숨김
+- 클라이언트는 `start()` 하나만 호출
+- 내부 구현이 바뀌어도 클라이언트 코드는 변경 없음
+
+---
+
+## Spring Boot 예제
+
+Spring에서 **Service Layer**가 대표적인 Facade 패턴입니다. 컨트롤러는 복잡한 비즈니스 로직을 몰라도 Service만 호출하면 됩니다.
+
+### 프로젝트 구조
+```
+src/main/java/com/example/order/
+├── facade/
+│   └── OrderFacade.java            # 퍼사드 (주문 처리 통합)
+├── service/
+│   ├── InventoryService.java       # 재고 관리
+│   ├── PaymentService.java         # 결제 처리
+│   ├── ShippingService.java        # 배송 관리
+│   ├── NotificationService.java    # 알림 발송
+│   └── PointService.java           # 포인트 적립
+├── dto/
+│   ├── OrderRequest.java
+│   └── OrderResult.java
+└── controller/
+    └── OrderController.java
+```
+
+### 1. 서브시스템 서비스들
+
+```java
+@Service
+@Slf4j
+public class InventoryService {
+    public boolean checkStock(Long productId, int quantity) {
+        log.info("📦 재고 확인 - 상품: {}, 수량: {}", productId, quantity);
+        // 실제로는 DB 조회
+        return true;
+    }
+
+    public void decreaseStock(Long productId, int quantity) {
+        log.info("📦 재고 감소 - 상품: {}, 수량: -{}", productId, quantity);
+    }
+}
+
+@Service
+@Slf4j
+public class PaymentService {
+    public String processPayment(Long customerId, int amount, String paymentMethod) {
+        log.info("💳 결제 처리 - 고객: {}, 금액: {}원, 방식: {}",
+                customerId, amount, paymentMethod);
+        // 실제로는 PG사 연동
+        return "PAY_" + System.currentTimeMillis();
+    }
+}
+
+@Service
+@Slf4j
+public class ShippingService {
+    public String scheduleDelivery(Long orderId, String address) {
+        log.info("🚚 배송 예약 - 주문: {}, 주소: {}", orderId, address);
+        // 실제로는 배송사 API 연동
+        return "SHIP_" + System.currentTimeMillis();
+    }
+}
+
+@Service
+@Slf4j
+public class NotificationService {
+    public void sendOrderConfirmation(Long customerId, Long orderId) {
+        log.info("📧 주문 확인 알림 - 고객: {}, 주문: {}", customerId, orderId);
+        // 실제로는 이메일/SMS 발송
+    }
+}
+
+@Service
+@Slf4j
+public class PointService {
+    public int accumulatePoints(Long customerId, int amount) {
+        int points = amount / 100;  // 1% 적립
+        log.info("💰 포인트 적립 - 고객: {}, {}포인트", customerId, points);
+        return points;
+    }
+}
+```
+
+### 2. 퍼사드 (복잡한 주문 과정을 통합)
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class OrderFacade {
+
+    private final InventoryService inventoryService;
+    private final PaymentService paymentService;
+    private final ShippingService shippingService;
+    private final NotificationService notificationService;
+    private final PointService pointService;
+
+    /**
+     * 복잡한 주문 처리를 하나의 메서드로 통합
+     * 클라이언트(Controller)는 이 메서드만 호출하면 됨
+     */
+    @Transactional
+    public OrderResult placeOrder(OrderRequest request) {
+        log.info("🛒 주문 처리 시작 - 고객: {}", request.getCustomerId());
+
+        // 1. 재고 확인
+        if (!inventoryService.checkStock(request.getProductId(), request.getQuantity())) {
+            return OrderResult.fail("재고가 부족합니다.");
+        }
+
+        // 2. 결제 처리
+        String paymentId;
+        try {
+            paymentId = paymentService.processPayment(
+                    request.getCustomerId(),
+                    request.getTotalAmount(),
+                    request.getPaymentMethod()
+            );
+        } catch (Exception e) {
+            return OrderResult.fail("결제 처리 실패: " + e.getMessage());
+        }
+
+        // 3. 재고 감소
+        inventoryService.decreaseStock(request.getProductId(), request.getQuantity());
+
+        // 4. 주문 ID 생성 (실제로는 DB 저장)
+        Long orderId = System.currentTimeMillis();
+
+        // 5. 배송 예약
+        String trackingNumber = shippingService.scheduleDelivery(orderId, request.getAddress());
+
+        // 6. 포인트 적립
+        int earnedPoints = pointService.accumulatePoints(
+                request.getCustomerId(),
+                request.getTotalAmount()
+        );
+
+        // 7. 주문 확인 알림 발송
+        notificationService.sendOrderConfirmation(request.getCustomerId(), orderId);
+
+        log.info("✅ 주문 완료 - 주문번호: {}", orderId);
+
+        return OrderResult.success(orderId, paymentId, trackingNumber, earnedPoints);
+    }
+
+    /**
+     * 주문 취소도 복잡한 과정을 퍼사드가 처리
+     */
+    @Transactional
+    public OrderResult cancelOrder(Long orderId) {
+        log.info("❌ 주문 취소 시작 - 주문: {}", orderId);
+        // 환불, 재고 복구, 배송 취소, 포인트 차감 등...
+        return OrderResult.success(orderId, null, null, 0);
+    }
+}
+```
+
+### 3. DTO 클래스
+
+```java
+@Getter
+@AllArgsConstructor
+@NoArgsConstructor
+public class OrderRequest {
+    private Long customerId;
+    private Long productId;
+    private int quantity;
+    private int totalAmount;
+    private String paymentMethod;
+    private String address;
+}
+
+@Getter
+@AllArgsConstructor
+public class OrderResult {
+    private boolean success;
+    private String message;
+    private Long orderId;
+    private String paymentId;
+    private String trackingNumber;
+    private int earnedPoints;
+
+    public static OrderResult success(Long orderId, String paymentId,
+                                      String trackingNumber, int earnedPoints) {
+        return new OrderResult(true, "주문 완료",
+                orderId, paymentId, trackingNumber, earnedPoints);
+    }
+
+    public static OrderResult fail(String message) {
+        return new OrderResult(false, message, null, null, null, 0);
+    }
+}
+```
+
+### 4. 컨트롤러 (매우 단순해짐!)
+
+```java
+@RestController
+@RequestMapping("/api/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderFacade orderFacade;  // 퍼사드만 주입
+
+    @PostMapping
+    public ResponseEntity<OrderResult> createOrder(@RequestBody OrderRequest request) {
+        // 컨트롤러는 복잡한 과정을 몰라도 됨!
+        OrderResult result = orderFacade.placeOrder(request);
+
+        if (result.isSuccess()) {
+            return ResponseEntity.ok(result);
+        }
+        return ResponseEntity.badRequest().body(result);
+    }
+
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<OrderResult> cancelOrder(@PathVariable Long orderId) {
+        OrderResult result = orderFacade.cancelOrder(orderId);
+        return ResponseEntity.ok(result);
+    }
+}
+```
+
+### 사용 예시
+
+```bash
+curl -X POST http://localhost:8080/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": 1,
+    "productId": 100,
+    "quantity": 2,
+    "totalAmount": 50000,
+    "paymentMethod": "CARD",
+    "address": "서울시 강남구"
+  }'
+```
+
+**출력 로그:**
+```
+🛒 주문 처리 시작 - 고객: 1
+📦 재고 확인 - 상품: 100, 수량: 2
+💳 결제 처리 - 고객: 1, 금액: 50000원, 방식: CARD
+📦 재고 감소 - 상품: 100, 수량: -2
+🚚 배송 예약 - 주문: 1704123456789, 주소: 서울시 강남구
+💰 포인트 적립 - 고객: 1, 500포인트
+📧 주문 확인 알림 - 고객: 1, 주문: 1704123456789
+✅ 주문 완료 - 주문번호: 1704123456789
+```
+
+### 퍼사드 vs 서비스 레이어
+
+Spring에서 일반 Service와 Facade의 차이:
+
+```java
+// 일반 Service: 단일 도메인 로직
+@Service
+public class PaymentService {
+    public String processPayment(...) { /* 결제만 */ }
+}
+
+// Facade: 여러 서비스 조합 (오케스트레이션)
+@Service
+public class OrderFacade {
+    // 재고 + 결제 + 배송 + 알림 + 포인트 조합
+    public OrderResult placeOrder(...) { /* 여러 서비스 조합 */ }
+}
+```
+
+---
 
 ## 실생활 예제 - 스마트 홈 시어터 시스템
 
@@ -849,3 +1250,78 @@ public class Client {
 - **불필요한 간접 계층**: 서브시스템이 간단한 경우, 퍼사드를 도입하는 것이 오히려 불필요한 복잡성을 추가할 수 있습니다.
 - **유연성 제한**: 퍼사드가 제공하지 않는 세부 기능에 접근하기 어려울 수 있습니다.
 - **성능 오버헤드**: 추가적인 간접 호출로 인한 약간의 성능 저하가 있을 수 있습니다.
+
+## 관련 패턴
+
+### Facade vs Adapter vs Proxy 비교
+
+| 패턴 | 목적 | 대상 | 인터페이스 |
+|------|------|------|-----------|
+| **Facade** | 복잡한 시스템을 **단순화** | 여러 클래스의 집합 | 새로운 단순한 인터페이스 |
+| **Adapter** | 인터페이스 **호환성** 제공 | 단일 클래스 | 기존 인터페이스에 맞춤 |
+| **Proxy** | 객체 접근 **제어** | 단일 클래스 | 동일한 인터페이스 유지 |
+
+```java
+// Facade: 여러 서비스를 하나로 묶음
+class OrderFacade {
+    void placeOrder() {
+        inventoryService.check();
+        paymentService.process();
+        shippingService.schedule();  // 3개 서비스 조합
+    }
+}
+
+// Adapter: 다른 인터페이스를 내 인터페이스에 맞춤
+class TossPayAdapter implements PaymentPort {
+    private TossPayClient client;  // 외부 API를 내 인터페이스로
+    void pay() { client.requestPayment(); }
+}
+
+// Proxy: 같은 인터페이스로 접근 제어
+class PaymentServiceProxy implements PaymentService {
+    private PaymentService real;
+    void pay() {
+        log("결제 시작");  // 접근 제어/로깅 추가
+        real.pay();
+    }
+}
+```
+
+### 함께 자주 사용되는 패턴
+
+| 패턴 | 조합 이유 | 예시 |
+|------|----------|------|
+| **Singleton** | Facade는 보통 하나만 필요 | `OrderFacade`를 싱글톤으로 (Spring에서는 기본) |
+| **Abstract Factory** | Facade가 사용할 객체 생성 분리 | 결제 전략 객체를 팩토리로 생성 |
+| **Mediator** | 유사하지만 양방향 통신 | Facade는 단방향, Mediator는 컴포넌트 간 중재 |
+
+### Facade vs Mediator
+
+```java
+// Facade: 클라이언트 → Facade → 서브시스템 (단방향)
+class OrderFacade {
+    void placeOrder() {
+        // 클라이언트가 Facade만 호출
+        // 서브시스템들은 서로 모름
+    }
+}
+
+// Mediator: 컴포넌트 ⇄ Mediator ⇄ 컴포넌트 (양방향)
+class ChatMediator {
+    void sendMessage(User from, String message) {
+        // 사용자들이 Mediator를 통해 서로 통신
+        for (User user : users) {
+            if (user != from) user.receive(message);
+        }
+    }
+}
+```
+
+### 실무 적용 가이드
+
+| 상황 | 적합한 패턴 |
+|------|------------|
+| 여러 서비스를 조합해서 하나의 비즈니스 로직 | **Facade** |
+| 외부 API를 내 시스템 인터페이스에 맞추기 | **Adapter** |
+| 객체 접근 전에 로깅/캐싱/권한 체크 | **Proxy** |
+| 여러 객체 간의 복잡한 상호작용 관리 | **Mediator** |

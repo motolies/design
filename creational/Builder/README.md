@@ -4,6 +4,35 @@
 
 빌더 패턴은 복잡한 객체를 생성하는 과정을 단계별로 분리하여, 동일한 생성 절차에서 서로 다른 표현 결과를 만들 수 있도록 하는 생성 디자인 패턴입니다.
 
+## 🎯 한눈에 보기
+
+| 항목 | 설명 |
+|------|------|
+| **핵심** | 복잡한 객체를 단계별로 조립, 필수/선택 매개변수 구분 |
+| **비유** | 지하철 샌드위치: 빵 선택 → 재료 선택 → 소스 선택 → 완성 |
+| **언제** | 생성자 매개변수가 4개 이상이거나, 선택적 매개변수가 많을 때 |
+| **Spring** | Lombok `@Builder`, 불변 객체 DTO 생성 |
+
+> **💡 매개변수가 너무 많으면 헷갈린다...**
+>
+> **❌ Before (생성자 지옥)**
+> ```java
+> new User("홍길동", "hong@email.com", 25,
+>          "010-1234-5678", "서울", true, false);
+> // → 어떤 값이 무엇인지 알 수 없음!
+> ```
+>
+> **✅ After (빌더 패턴)**
+> ```java
+> User.builder()
+>     .name("홍길동")
+>     .email("hong@email.com")
+>     .age(25)
+>     .phone("010-1234-5678")
+>     .build();
+> // → 각 필드가 명확하고, 필요한 것만 설정!
+> ```
+
 ## 구조 (Structure)
 
 ```mermaid
@@ -43,6 +72,41 @@ classDiagram
     ConcreteBuilder --> Product
 ```
 
+## 동작 흐름 (시퀀스 다이어그램)
+
+```mermaid
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Builder as Builder
+    participant Product as Product
+
+    Client->>Builder: new Builder(필수값)
+    Note over Builder: 필수 매개변수 설정
+
+    Client->>Builder: name("홍길동")
+    Builder-->>Client: return this
+
+    Client->>Builder: email("hong@email.com")
+    Builder-->>Client: return this
+
+    Client->>Builder: age(25)
+    Builder-->>Client: return this
+
+    Note over Client,Builder: 메서드 체이닝으로<br/>선택적 값 설정
+
+    Client->>Builder: build()
+    Builder->>Product: new Product(this)
+    Note over Product: 불변 객체 생성
+
+    Product-->>Builder: Product 인스턴스
+    Builder-->>Client: Product 인스턴스
+```
+
+**핵심 포인트:**
+- 메서드 체이닝 (`return this`)으로 연속 호출 가능
+- `build()` 호출 시 검증 후 불변 객체 생성
+- 필수값은 Builder 생성자에, 선택값은 setter 메서드로
+
 ## 사용 이유
 
 - **복잡한 객체 생성**: 생성자에 많은 매개변수가 필요하거나, 객체 생성 과정이 여러 단계로 구성되어 복잡할 때 유용합니다.
@@ -72,6 +136,126 @@ Computer computer = new Computer.Builder("Intel i7", "16GB")
     .hasWiFi(true)
     .build();
 ```
+
+## 초급 예제 - 5분 만에 이해하기
+
+햄버거 주문으로 빌더 패턴을 이해해봅시다.
+
+```java
+// 1. 햄버거 클래스 (불변 객체)
+class Burger {
+    private final String bun;       // 필수
+    private final String patty;     // 필수
+    private final boolean cheese;   // 선택
+    private final boolean lettuce;  // 선택
+    private final boolean tomato;   // 선택
+    private final String sauce;     // 선택
+
+    // private 생성자 - 빌더를 통해서만 생성 가능
+    private Burger(Builder builder) {
+        this.bun = builder.bun;
+        this.patty = builder.patty;
+        this.cheese = builder.cheese;
+        this.lettuce = builder.lettuce;
+        this.tomato = builder.tomato;
+        this.sauce = builder.sauce;
+    }
+
+    @Override
+    public String toString() {
+        return "🍔 버거: " + bun + " + " + patty +
+               (cheese ? " + 치즈" : "") +
+               (lettuce ? " + 양상추" : "") +
+               (tomato ? " + 토마토" : "") +
+               (sauce != null ? " + " + sauce : "");
+    }
+
+    // 2. 정적 내부 빌더 클래스
+    public static class Builder {
+        // 필수 매개변수
+        private final String bun;
+        private final String patty;
+
+        // 선택 매개변수 (기본값)
+        private boolean cheese = false;
+        private boolean lettuce = false;
+        private boolean tomato = false;
+        private String sauce = null;
+
+        // 필수값은 생성자로
+        public Builder(String bun, String patty) {
+            this.bun = bun;
+            this.patty = patty;
+        }
+
+        // 선택값은 메서드로 (return this로 체이닝)
+        public Builder cheese() {
+            this.cheese = true;
+            return this;
+        }
+
+        public Builder lettuce() {
+            this.lettuce = true;
+            return this;
+        }
+
+        public Builder tomato() {
+            this.tomato = true;
+            return this;
+        }
+
+        public Builder sauce(String sauce) {
+            this.sauce = sauce;
+            return this;
+        }
+
+        // build() 호출 시 불변 객체 생성
+        public Burger build() {
+            return new Burger(this);
+        }
+    }
+}
+
+// 3. 사용
+public class Main {
+    public static void main(String[] args) {
+        // 기본 버거 (필수 재료만)
+        Burger basic = new Burger.Builder("참깨빵", "쇠고기 패티")
+                .build();
+        System.out.println(basic);
+
+        // 치즈버거
+        Burger cheeseBurger = new Burger.Builder("참깨빵", "쇠고기 패티")
+                .cheese()
+                .build();
+        System.out.println(cheeseBurger);
+
+        // 풀옵션 버거
+        Burger deluxe = new Burger.Builder("브리오슈 번", "한우 패티")
+                .cheese()
+                .lettuce()
+                .tomato()
+                .sauce("특제 소스")
+                .build();
+        System.out.println(deluxe);
+    }
+}
+```
+
+**출력:**
+```
+🍔 버거: 참깨빵 + 쇠고기 패티
+🍔 버거: 참깨빵 + 쇠고기 패티 + 치즈
+🍔 버거: 브리오슈 번 + 한우 패티 + 치즈 + 양상추 + 토마토 + 특제 소스
+```
+
+**핵심 포인트:**
+- 필수값(bun, patty)은 Builder 생성자로 강제
+- 선택값은 메서드로 호출 (호출 안 하면 기본값)
+- `return this`로 메서드 체이닝 가능
+- `build()`에서 불변 객체 생성
+
+---
 
 ## 실생활 예제 - 컴퓨터 조립
 
@@ -643,3 +827,118 @@ public class Client {
 - **코드 복잡성 증가**: 빌더 클래스를 추가로 작성해야 하므로 코드의 양이 늘어납니다. 간단한 객체를 생성할 때는 오버헤드가 될 수 있습니다.
 - **내부 빌더의 불변성**: 빌더 자체는 불변이 아니므로, `build()` 메서드 호출 전에 빌더의 상태가 변경될 수 있습니다.
 - **메모리 사용량**: 빌더 객체가 추가로 생성되므로 메모리 사용량이 증가합니다.
+
+## 관련 패턴
+
+### Builder vs Factory Method vs Abstract Factory
+
+| 패턴 | 목적 | 복잡도 | 결과물 |
+|------|------|--------|--------|
+| **Builder** | 복잡한 객체 단계별 생성 | 높음 | 하나의 복잡한 객체 |
+| **Factory Method** | 객체 생성 위임 | 낮음 | 단순한 객체 |
+| **Abstract Factory** | 관련 객체 군(群) 생성 | 높음 | 여러 관련 객체 |
+
+```java
+// Builder: 복잡한 객체 하나를 단계별 생성
+User user = User.builder()
+    .name("홍길동")
+    .email("hong@example.com")
+    .age(25)
+    .build();
+
+// Factory Method: 타입에 따라 다른 객체 반환
+Notification noti = NotificationFactory.create("email");
+
+// Abstract Factory: 관련 객체들을 함께 생성
+UIFactory factory = new MacUIFactory();
+Button button = factory.createButton();
+TextField field = factory.createTextField();
+```
+
+### Builder vs 점층적 생성자 (Telescoping Constructor)
+
+```java
+// ❌ 점층적 생성자: 매개변수 조합마다 생성자 필요
+public User(String name) { ... }
+public User(String name, String email) { ... }
+public User(String name, String email, int age) { ... }
+public User(String name, String email, int age, String phone) { ... }
+// → 매개변수 n개면 최대 n! 개의 생성자 필요!
+
+// ✅ Builder: 하나의 빌더로 모든 조합 커버
+User.builder()
+    .name("홍길동")
+    .phone("010-1234-5678")  // email, age 생략 가능
+    .build();
+```
+
+### Builder vs JavaBeans (Setter)
+
+```java
+// ❌ JavaBeans: 불변성 보장 안 됨
+User user = new User();
+user.setName("홍길동");
+user.setEmail("hong@example.com");
+// → 객체가 일관되지 않은 상태로 존재 가능
+
+// ✅ Builder: build() 전까지 객체 없음, 불변 보장
+User user = User.builder()
+    .name("홍길동")
+    .email("hong@example.com")
+    .build();  // 이 시점에 불변 객체 완성
+```
+
+### 함께 자주 사용되는 패턴
+
+| 패턴 | 조합 이유 | 예시 |
+|------|----------|------|
+| **Fluent Interface** | 메서드 체이닝 스타일 | `.name().email().build()` |
+| **Factory** | 빌더 자체를 팩토리로 생성 | `BuilderFactory.getBuilder("gaming")` |
+| **Prototype** | 빌더로 프로토타입 복제 | `builder.from(existingObject)` |
+
+### 실무 선택 가이드
+
+| 상황 | 적합한 패턴 |
+|------|------------|
+| 매개변수 4개 이상, 선택적 매개변수 많음 | **Builder** |
+| 불변(Immutable) 객체 생성 | **Builder** |
+| 단순히 타입에 따라 다른 객체 필요 | **Factory Method** |
+| 관련된 여러 객체를 한꺼번에 생성 | **Abstract Factory** |
+| Lombok 사용 중인 Spring 프로젝트 | **@Builder** |
+
+### Lombok @Builder 활용 팁
+
+```java
+// 기본 사용
+@Builder
+public class User {
+    private String name;
+    private String email;
+}
+
+// 기본값 설정
+@Builder
+public class Order {
+    @Builder.Default
+    private String status = "PENDING";
+
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
+}
+
+// 필수값 검증 (커스텀 빌더)
+@Builder
+public class Payment {
+    private Long amount;
+    private String method;
+
+    public static class PaymentBuilder {
+        public Payment build() {
+            if (amount == null || amount <= 0) {
+                throw new IllegalArgumentException("금액은 필수입니다");
+            }
+            return new Payment(amount, method);
+        }
+    }
+}
+```
