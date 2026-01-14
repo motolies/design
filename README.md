@@ -31,7 +31,7 @@
 ### [⚡ 행동 패턴 (Behavioral)](./behavioral)
 객체 간의 상호작용과 책임 분배를 정의하는 패턴들입니다.
 
-**주요 패턴**: Observer, Strategy, Template Method, Command, State, Chain of Responsibility
+**주요 패턴**: Observer, Strategy, Template Method, Command, State, Chain of Responsibility, Visitor, Mediator
 
 **언제 사용?**: 객체 간 결합도를 낮추고, 유연한 상호작용을 구현하고 싶을 때
 
@@ -81,8 +81,105 @@ GoF 패턴 외에 실무에서 자주 사용되는 추가 패턴들을 다룹니
 |----------|-------------|--------|-------------|--------|
 | **생성 패턴** | 3개 | ⭐⭐⭐ | ✅ | 🔰 입문자용 |
 | **구조 패턴** | 7개 | ⭐⭐⭐⭐⭐ | ✅ | 🚀 활용도 높음 |
-| **행동 패턴** | 6개 | ⭐⭐⭐⭐⭐ | ✅ | 💪 실무 핵심 |
+| **행동 패턴** | 8개 | ⭐⭐⭐⭐⭐ | ✅ | 💪 실무 핵심 |
 | **부록** | 13개 | ⭐⭐⭐⭐ | ✅ | 🏢 실무 심화 |
+
+## 📊 패턴 복잡도 비교표
+
+| 패턴 | 이해 난이도 | 구현 난이도 | 사용 빈도 |
+|------|------------|------------|----------|
+| **Singleton** | ⭐ | ⭐ | ⭐⭐⭐⭐⭐ |
+| **Factory Method** | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Builder** | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+| **Strategy** | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Observer** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Facade** | ⭐ | ⭐ | ⭐⭐⭐⭐ |
+| **Adapter** | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
+| **Decorator** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
+| **Template Method** | ⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
+| **Command** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **State** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
+| **Composite** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **Proxy** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **Bridge** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| **Flyweight** | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **Visitor** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| **Mediator** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+| **Chain of Responsibility** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ |
+
+## 🗺️ 학습 로드맵
+
+```mermaid
+graph LR
+    subgraph 입문["🔰 입문"]
+        S[Singleton]
+        F[Facade]
+    end
+
+    subgraph 기초["📘 기초"]
+        FM[Factory Method]
+        St[Strategy]
+        Ob[Observer]
+    end
+
+    subgraph 중급["📙 중급"]
+        B[Builder]
+        D[Decorator]
+        A[Adapter]
+        TM[Template Method]
+    end
+
+    subgraph 고급["📕 고급"]
+        Co[Composite]
+        Cmd[Command]
+        State[State]
+        Pr[Proxy]
+    end
+
+    subgraph 심화["🎓 심화"]
+        V[Visitor]
+        M[Mediator]
+        Br[Bridge]
+        Fly[Flyweight]
+    end
+
+    입문 --> 기초
+    기초 --> 중급
+    중급 --> 고급
+    고급 --> 심화
+```
+
+## ⚡ 빠른 참조
+
+### 객체 생성이 필요할 때
+| 상황 | 추천 패턴 |
+|------|----------|
+| 인스턴스가 하나만 필요 | **Singleton** |
+| 타입별로 다른 객체 생성 | **Factory Method** |
+| 생성자 파라미터가 많음 | **Builder** |
+| 관련 객체들을 함께 생성 | **Abstract Factory** |
+| 기존 객체를 복사해서 생성 | **Prototype** |
+
+### 구조 변경이 필요할 때
+| 상황 | 추천 패턴 |
+|------|----------|
+| 호환되지 않는 인터페이스 연결 | **Adapter** |
+| 기능을 동적으로 추가 | **Decorator** |
+| 복잡한 시스템을 단순하게 | **Facade** |
+| 트리 구조로 객체 구성 | **Composite** |
+| 접근 제어나 지연 로딩 | **Proxy** |
+
+### 행동 변경이 필요할 때
+| 상황 | 추천 패턴 |
+|------|----------|
+| 알고리즘을 런타임에 교체 | **Strategy** |
+| 상태에 따라 행동 변경 | **State** |
+| 이벤트를 여러 곳에 알림 | **Observer** |
+| 요청을 객체로 캡슐화 | **Command** |
+| 공통 알고리즘에 세부 단계 | **Template Method** |
+| 요청을 체인으로 처리 | **Chain of Responsibility** |
+| 객체 구조에 새 연산 추가 | **Visitor** |
+| 복잡한 객체 간 통신 중재 | **Mediator** |
 
 ## 🛠️ 기술 스택
 
