@@ -11,6 +11,12 @@
 | [Write-Through](./WriteThrough) | DB와 캐시 동시 업데이트 | ⭐⭐ | `@CachePut` |
 | [Write-Behind](./WriteBehind) | 캐시 먼저, 비동기 DB 저장 | ⭐⭐ | `@Async` + Queue |
 
+### 고급 패턴 (MSA 환경)
+
+| 패턴 | 설명 | 난이도 | 기술스택 |
+|------|------|--------|----------|
+| [Cache-Aside MSA 멀티레벨](./CacheAside/MSA-MultiLevel.md) | L1(로컬)→L2(Redis)→L3(DB) 3계층 캐시 + Pod 간 동기화 | ⭐⭐⭐ | Redisson + Caffeine + Pub/Sub |
+
 ## 핵심 개념
 
 ### 캐시 히트 vs 캐시 미스

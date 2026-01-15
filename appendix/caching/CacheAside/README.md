@@ -165,6 +165,14 @@ public void invalidateUser(Long id) {}
 public void invalidateAllUsers() {}
 ```
 
+## 고급 버전
+
+| 문서 | 설명 |
+|------|------|
+| [MSA 멀티레벨 캐시](./MSA-MultiLevel.md) | 3계층 캐시(L1:로컬, L2:Redis, L3:DB) + Pod 간 Pub/Sub 동기화 |
+
+MSA 환경에서 로컬 캐시와 분산 캐시를 함께 사용하고, 여러 Pod 간 캐시 일관성을 유지해야 한다면 고급 버전을 참고하세요.
+
 ## 관련 패턴
 
 | 패턴 | 관계 |
