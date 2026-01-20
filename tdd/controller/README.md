@@ -561,6 +561,174 @@ flowchart TB
     style DELETE fill:#f44336,color:#fff
 ```
 
+## 💡 팁
+
+### @WithMockUser로 시큐리티 테스트
+
+Spring Security가 적용된 API를 테스트할 때 사용합니다.
+
+```java
+@WebMvcTest(OrderController.class)
+class OrderControllerSecurityTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private OrderService orderService;
+
+    @Test
+    @WithMockUser(username = "user", roles = {"USER"})
+    @DisplayName("인증된 사용자는 주문을 조회할 수 있다")
+    void getOrder_AuthenticatedUser_Success() throws Exception {
+        given(orderService.findById(1L)).willReturn(new Order(1L, "맥북", 2000000));
+
+        mockMvc.perform(get("/api/orders/{id}", 1L))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("인증되지 않은 사용자는 401 에러를 받는다")
+    void getOrder_UnauthenticatedUser_Unauthorized() throws Exception {
+        mockMvc.perform(get("/api/orders/{id}", 1L))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @DisplayName("관리자는 주문을 삭제할 수 있다")
+    void deleteOrder_AdminUser_Success() throws Exception {
+        mockMvc.perform(delete("/api/orders/{id}", 1L))
+                .andExpect(status().isNoContent());
+    }
+}
+```
+
+### 커스텀 사용자 정보로 테스트
+
+```java
+@Test
+@WithMockUser(
+    username = "admin@example.com",
+    roles = {"ADMIN"},
+    password = "password123"
+)
+void adminOnlyEndpoint() throws Exception {
+    mockMvc.perform(get("/api/admin/users"))
+            .andExpect(status().isOk());
+}
+```
+
+### andDo(print())로 디버깅
+
+```java
+mockMvc.perform(get("/api/orders/{id}", 1L))
+        .andDo(print())  // 요청/응답 전체 출력
+        .andExpect(status().isOk());
+
+// 출력 예시:
+// MockHttpServletRequest:
+//       HTTP Method = GET
+//       Request URI = /api/orders/1
+// ...
+// MockHttpServletResponse:
+//          Status = 200
+//    Content type = application/json
+//            Body = {"id":1,"productName":"맥북"...}
+```
+
+### ResultActions 재사용
+
+```java
+@Test
+void multipleAssertions() throws Exception {
+    ResultActions result = mockMvc.perform(get("/api/orders/{id}", 1L));
+
+    // 여러 검증 분리
+    result.andExpect(status().isOk());
+    result.andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    result.andExpect(jsonPath("$.id").value(1));
+    result.andExpect(jsonPath("$.productName").value("맥북"));
+}
+```
+
+## 자주 하는 실수
+
+### 1. Content-Type 누락
+
+```java
+// ❌ 잘못된 예 - POST인데 Content-Type 없음
+mockMvc.perform(post("/api/orders")
+        .content(json))  // Content-Type 없음!
+        .andExpect(status().isCreated());
+// → 415 Unsupported Media Type 발생
+
+// ✅ 올바른 예
+mockMvc.perform(post("/api/orders")
+        .contentType(MediaType.APPLICATION_JSON)  // 필수!
+        .content(json))
+        .andExpect(status().isCreated());
+```
+
+### 2. Path Variable vs Request Param 혼동
+
+```java
+// Path Variable: /api/orders/1
+mockMvc.perform(get("/api/orders/{id}", 1L))
+
+// Request Param: /api/orders?status=PENDING
+mockMvc.perform(get("/api/orders")
+        .param("status", "PENDING"))
+
+// 둘 다: /api/orders/1?include=details
+mockMvc.perform(get("/api/orders/{id}", 1L)
+        .param("include", "details"))
+```
+
+### 3. JSON 배열 검증 실수
+
+```java
+// ❌ 잘못된 예 - 배열의 특정 요소 접근 시 괄호 누락
+.andExpect(jsonPath("$.items.0.name").value("맥북"))  // 에러!
+
+// ✅ 올바른 예
+.andExpect(jsonPath("$.items[0].name").value("맥북"))
+
+// 배열 전체 검증
+.andExpect(jsonPath("$.items").isArray())
+.andExpect(jsonPath("$.items.length()").value(3))
+.andExpect(jsonPath("$.items[*].name").exists())
+```
+
+### 4. @MockBean vs @Mock 혼동
+
+```java
+// ❌ @WebMvcTest에서 @Mock 사용 → 컨트롤러에 주입 안 됨
+@WebMvcTest(OrderController.class)
+class OrderControllerTest {
+    @Mock  // Spring 컨텍스트에 등록 안 됨!
+    private OrderService orderService;
+}
+
+// ✅ @MockBean 사용
+@WebMvcTest(OrderController.class)
+class OrderControllerTest {
+    @MockBean  // Spring 컨텍스트에 등록됨
+    private OrderService orderService;
+}
+```
+
+### 5. 비동기 응답 처리
+
+```java
+// 비동기 컨트롤러 테스트 시
+mockMvc.perform(asyncDispatch(
+        mockMvc.perform(get("/api/orders/async"))
+                .andExpect(request().asyncStarted())
+                .andReturn()))
+        .andExpect(status().isOk());
+```
+
 ## 관련 문서
 
 | 문서 | 설명 |

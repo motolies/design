@@ -42,6 +42,13 @@ GoF 패턴 외에 실무에서 자주 사용되는 추가 패턴들을 다룹니
 
 **언제 사용?**: 분산 시스템, 데이터 접근 추상화, 시스템 복원력이 필요할 때
 
+### [🧪 테스트 주도 개발 (TDD)](./tdd)
+테스트를 먼저 작성하고 구현하는 개발 방법론입니다. Red-Green-Refactor 사이클과 다양한 계층별 테스트 전략을 학습합니다.
+
+**주요 내용**: Red-Green-Refactor, 컨트롤러 테스트, 서비스 테스트, 통합 테스트
+
+**사용 기술**: JUnit 5, AssertJ, Mockito, @WebMvcTest, @DataJpaTest
+
 ## 🚀 학습 가이드
 
 ### 1. 초보자 추천 학습 순서
@@ -110,7 +117,7 @@ GoF 패턴 외에 실무에서 자주 사용되는 추가 패턴들을 다룹니
 ## 🗺️ 학습 로드맵
 
 ```mermaid
-graph LR
+graph TD
     subgraph 입문["🔰 입문"]
         S[Singleton]
         F[Facade]

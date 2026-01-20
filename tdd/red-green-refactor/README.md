@@ -317,6 +317,160 @@ sequenceDiagram
 | 테스트 건너뛰기 | Red 없이 바로 구현 |
 | 리팩토링 미루기 | Refactor 건너뛰기 |
 
+## 💡 팁
+
+### 작은 단계로 진행하기
+
+TDD의 핵심은 **아주 작은 단계**로 진행하는 것입니다.
+
+```java
+// 1단계: 가장 단순한 케이스
+@Test void add_ZeroAndZero_ReturnsZero() {
+    assertThat(calculator.add(0, 0)).isEqualTo(0);
+}
+
+// 2단계: 양수 하나
+@Test void add_ZeroAndPositive_ReturnsPositive() {
+    assertThat(calculator.add(0, 5)).isEqualTo(5);
+}
+
+// 3단계: 양수 둘
+@Test void add_TwoPositives_ReturnsSum() {
+    assertThat(calculator.add(3, 5)).isEqualTo(8);
+}
+
+// 4단계: 음수 케이스
+@Test void add_NegativeNumbers_ReturnsSum() {
+    assertThat(calculator.add(-3, -5)).isEqualTo(-8);
+}
+```
+
+> **"큰 걸음보다 작은 발걸음이 더 빠르다"**
+
+### 테스트 먼저 커밋하기
+
+```bash
+# Red 단계에서 커밋 (테스트만)
+git add src/test/
+git commit -m "test: add 기능 테스트 추가 (Red)"
+
+# Green 단계에서 커밋 (구현)
+git add src/main/
+git commit -m "feat: add 기능 구현 (Green)"
+
+# Refactor 단계에서 커밋
+git commit -am "refactor: add 메서드 리팩토링"
+```
+
+이렇게 하면 **테스트가 먼저 존재한다는 것을 기록**으로 남길 수 있습니다.
+
+### 삼각측량 (Triangulation)
+
+하나의 테스트만으로 구현이 완성되지 않을 때, **여러 테스트를 추가하여 일반화**합니다.
+
+```java
+// 첫 번째 테스트 → 하드코딩으로 통과 가능
+@Test void add_1And1_Returns2() {
+    assertThat(calculator.add(1, 1)).isEqualTo(2);
+}
+
+// 이 구현으로 통과! (하지만 하드코딩)
+public int add(int a, int b) {
+    return 2;  // 하드코딩
+}
+
+// 두 번째 테스트 추가 → 삼각측량
+@Test void add_2And3_Returns5() {
+    assertThat(calculator.add(2, 3)).isEqualTo(5);
+}
+
+// 이제 일반화 필요
+public int add(int a, int b) {
+    return a + b;  // 일반화된 구현
+}
+```
+
+### ZOMBIES 원칙
+
+테스트 케이스 순서를 정할 때 참고하는 원칙입니다.
+
+| 문자 | 의미 | 예시 |
+|------|------|------|
+| **Z** | Zero | 빈 컬렉션, 0, null |
+| **O** | One | 단일 요소, 1개 |
+| **M** | Many | 여러 요소, 다수 |
+| **B** | Boundary | 경계값, 최대/최소 |
+| **I** | Interface | 인터페이스 정의 |
+| **E** | Exception | 예외 상황 |
+| **S** | Simple | 단순한 시나리오부터 |
+
+```java
+// Z: Zero
+@Test void isEmpty_EmptyList_ReturnsTrue() { ... }
+
+// O: One
+@Test void size_OneElement_ReturnsOne() { ... }
+
+// M: Many
+@Test void size_MultipleElements_ReturnsCount() { ... }
+
+// B: Boundary
+@Test void add_MaxInteger_ThrowsOverflow() { ... }
+
+// E: Exception
+@Test void get_InvalidIndex_ThrowsException() { ... }
+```
+
+## 자주 하는 실수
+
+### 1. 테스트 없이 구현 시작
+
+```java
+// ❌ 코드 먼저 작성
+public int add(int a, int b) {
+    return a + b;
+}
+// 나중에 테스트 작성... (TDD 아님!)
+
+// ✅ 테스트 먼저!
+@Test void add() {
+    assertThat(new Calculator().add(1, 2)).isEqualTo(3);
+}
+// → 컴파일 에러 → Calculator 클래스 생성 → add 메서드 구현
+```
+
+### 2. 너무 큰 단계로 진행
+
+```java
+// ❌ 한 번에 복잡한 기능 전체 테스트
+@Test void processOrder_CompleteFlow() {
+    // 재고 확인, 결제, 배송, 알림까지 전부...
+}
+
+// ✅ 작은 단위로 분리
+@Test void validateStock_SufficientStock_ReturnsTrue() { ... }
+@Test void processPayment_ValidCard_ReturnsSuccess() { ... }
+@Test void createShipment_ValidOrder_ReturnsTrackingNumber() { ... }
+```
+
+### 3. Red 상태 확인 건너뛰기
+
+```java
+// ❌ 테스트 작성 후 바로 구현
+// (테스트가 실패하는지 확인 안 함)
+
+// ✅ 반드시 실패 확인
+// 1. 테스트 작성
+// 2. 테스트 실행 → 실패 확인 (Red)
+// 3. 구현
+// 4. 테스트 실행 → 성공 확인 (Green)
+```
+
+**왜 Red 확인이 중요한가?**
+- 테스트가 실제로 실행되는지 확인
+- 항상 성공하는 잘못된 테스트 방지
+- 테스트가 올바른 것을 검증하는지 확인
+
 ## 관련 문서
 
 | 문서 | 설명 |

@@ -185,5 +185,6 @@ import org.springframework.test.web.servlet.MockMvc;
 | [Static 서비스 테스트](./static-service/README.md) | 가장 단순한 순수 단위 테스트 | ⭐ |
 | [서비스 빈 테스트](./service/README.md) | Mockito로 의존성 모킹 | ⭐⭐ |
 | [컨트롤러 테스트](./controller/README.md) | @WebMvcTest로 API 테스트 | ⭐⭐ |
+| [통합 테스트](./integration-test/README.md) | @SpringBootTest, @DataJpaTest 활용 | ⭐⭐⭐ |
 
-> **추천 학습 순서**: Red-Green-Refactor → Static 서비스 → 서비스 빈 → 컨트롤러
+> **추천 학습 순서**: Red-Green-Refactor → Static 서비스 → 서비스 빈 → 컨트롤러 → 통합 테스트

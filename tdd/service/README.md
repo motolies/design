@@ -489,6 +489,142 @@ flowchart LR
 | **스터빙** | Mock이 어떻게 동작할지 정의 | Given (준비) |
 | **검증** | Mock이 어떻게 호출되었는지 확인 | Then (검증) |
 
+## 💡 팁
+
+### @Spy vs @Mock 비교
+
+```java
+// @Mock: 모든 메서드가 기본값 반환 (null, 0, false 등)
+@Mock
+private OrderRepository mockRepository;
+
+// @Spy: 실제 객체의 메서드 호출, 필요한 것만 스터빙
+@Spy
+private OrderRepository spyRepository = new OrderRepositoryImpl();
+
+@Test
+void spyExample() {
+    // Spy는 실제 메서드 호출
+    Order order = spyRepository.findById(1L);  // 실제 로직 실행
+
+    // 특정 메서드만 스터빙
+    doReturn(Optional.of(mockOrder))
+            .when(spyRepository).findById(1L);
+}
+```
+
+| 구분 | @Mock | @Spy |
+|------|-------|------|
+| 기본 동작 | 아무것도 안 함 (null 반환) | 실제 메서드 호출 |
+| 스터빙 | 필수 | 선택 (필요한 것만) |
+| 사용 시점 | 완전한 격리가 필요할 때 | 일부만 대체할 때 |
+
+### @Captor 어노테이션
+
+ArgumentCaptor를 더 깔끔하게 선언합니다.
+
+```java
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+
+    @Mock
+    private OrderRepository orderRepository;
+
+    @Captor  // ArgumentCaptor를 필드로 선언
+    private ArgumentCaptor<Order> orderCaptor;
+
+    @Test
+    void createOrder_CapturesCorrectOrder() {
+        // When
+        orderService.createOrder(request);
+
+        // Then
+        verify(orderRepository).save(orderCaptor.capture());
+
+        Order captured = orderCaptor.getValue();
+        assertThat(captured.getProductName()).isEqualTo("맥북");
+    }
+}
+```
+
+### BDDMockito로 가독성 향상
+
+```java
+// 전통적인 Mockito
+when(repository.findById(1L)).thenReturn(Optional.of(order));
+verify(repository).save(any());
+
+// BDDMockito - Given/When/Then과 일치
+given(repository.findById(1L)).willReturn(Optional.of(order));
+then(repository).should().save(any());
+```
+
+## 자주 하는 실수
+
+### 1. 불필요한 스터빙 (UnnecessaryStubbingException)
+
+```java
+// ❌ 잘못된 예 - 사용하지 않는 스터빙
+@Test
+void test() {
+    when(repository.findById(1L)).thenReturn(order);  // 사용 안 함!
+    when(repository.findById(2L)).thenReturn(order2); // 이것만 사용
+
+    service.processOrder(2L);  // findById(1L) 호출 안 함
+}
+// → UnnecessaryStubbingException 발생!
+
+// ✅ 해결 방법 1: 필요한 스터빙만 작성
+@Test
+void test() {
+    when(repository.findById(2L)).thenReturn(order2);
+    service.processOrder(2L);
+}
+
+// ✅ 해결 방법 2: lenient() 사용 (권장하지 않음)
+@Test
+void test() {
+    lenient().when(repository.findById(1L)).thenReturn(order);
+}
+```
+
+### 2. any()와 실제 값 혼용
+
+```java
+// ❌ 잘못된 예 - 매처와 실제 값 혼용
+when(service.process(any(), 100)).thenReturn(result);  // 컴파일 에러!
+
+// ✅ 올바른 예 - 모두 매처 또는 모두 실제 값
+when(service.process(any(), eq(100))).thenReturn(result);
+when(service.process("test", 100)).thenReturn(result);
+```
+
+### 3. void 메서드 스터빙
+
+```java
+// ❌ 잘못된 예 - void 메서드에 when() 사용
+when(notificationService.send(any())).thenThrow(new Exception());  // 에러!
+
+// ✅ 올바른 예 - doThrow() 사용
+doThrow(new RuntimeException("전송 실패"))
+        .when(notificationService).send(any());
+
+// void 메서드 아무것도 안 하게
+doNothing().when(notificationService).send(any());
+```
+
+### 4. 스터빙 순서 실수
+
+```java
+// ❌ 잘못된 예 - 더 구체적인 스터빙이 나중에
+when(repository.findById(anyLong())).thenReturn(Optional.empty());
+when(repository.findById(1L)).thenReturn(Optional.of(order));  // 무시됨!
+
+// ✅ 올바른 예 - 구체적인 것 먼저
+when(repository.findById(1L)).thenReturn(Optional.of(order));
+when(repository.findById(anyLong())).thenReturn(Optional.empty());
+```
+
 ## 관련 문서
 
 | 문서 | 설명 |

@@ -446,6 +446,109 @@ void calculateDiscount_VipMember_GetsExtraDiscount() {
 | `should_결과_when_조건` | `should_ReturnSum_when_AddingTwoNumbers` |
 | `한글 DisplayName` | `@DisplayName("두 수를 더하면 합계가 반환된다")` |
 
+## 💡 팁
+
+### Soft Assertions - 여러 검증을 한 번에
+
+여러 assertion 중 하나가 실패해도 나머지 검증을 모두 실행합니다.
+
+```java
+@Test
+@DisplayName("주문 정보가 올바르게 생성된다")
+void createOrder_ValidInput_ReturnsCorrectOrder() {
+    // Given
+    Order order = new Order("맥북", 2000000, 2);
+
+    // Then - Soft Assertions 사용
+    SoftAssertions.assertSoftly(softly -> {
+        softly.assertThat(order.getProductName()).isEqualTo("맥북");
+        softly.assertThat(order.getPrice()).isEqualTo(2000000);
+        softly.assertThat(order.getQuantity()).isEqualTo(2);
+        softly.assertThat(order.getTotalPrice()).isEqualTo(4000000);
+    });
+    // 모든 실패 내용을 한 번에 확인 가능!
+}
+```
+
+### @Nested로 테스트 그룹화
+
+```java
+class CalculatorTest {
+
+    @Nested
+    @DisplayName("add 메서드")
+    class Add {
+        @Test void 양수_더하기() { ... }
+        @Test void 음수_더하기() { ... }
+    }
+
+    @Nested
+    @DisplayName("divide 메서드")
+    class Divide {
+        @Test void 정상_나누기() { ... }
+        @Test void 0으로_나누기_예외() { ... }
+    }
+}
+```
+
+## 자주 하는 실수
+
+### 1. mockStatic() 사용 시 try-with-resources 필수
+
+```java
+// ❌ 잘못된 예 - 메모리 누수 및 다른 테스트에 영향
+@Test
+void test() {
+    MockedStatic<LocalDateTime> mock = mockStatic(LocalDateTime.class);
+    mock.when(LocalDateTime::now).thenReturn(fixedTime);
+    // mock.close() 호출 안 함!
+}
+
+// ✅ 올바른 예 - try-with-resources 사용
+@Test
+void test() {
+    try (MockedStatic<LocalDateTime> mock = mockStatic(LocalDateTime.class)) {
+        mock.when(LocalDateTime::now).thenReturn(fixedTime);
+        // 테스트 코드
+    } // 자동으로 close() 호출
+}
+```
+
+### 2. 테스트 간 상태 공유 금지
+
+```java
+// ❌ 잘못된 예 - 테스트 순서에 따라 결과가 달라짐
+class CalculatorTest {
+    static int result;  // static 변수로 상태 공유
+
+    @Test void test1() { result = 10; }
+    @Test void test2() { assertThat(result).isEqualTo(0); }  // 실패!
+}
+
+// ✅ 올바른 예 - 각 테스트가 독립적
+class CalculatorTest {
+    private Calculator calculator;
+
+    @BeforeEach
+    void setUp() {
+        calculator = new Calculator();  // 매 테스트마다 새로 생성
+    }
+}
+```
+
+### 3. 의미 없는 테스트 이름
+
+```java
+// ❌ 잘못된 예
+@Test void test1() { ... }
+@Test void testAdd() { ... }
+
+// ✅ 올바른 예
+@Test
+@DisplayName("두 양수를 더하면 합계가 반환된다")
+void add_TwoPositiveNumbers_ReturnsSum() { ... }
+```
+
 ## 관련 문서
 
 | 문서 | 설명 |
