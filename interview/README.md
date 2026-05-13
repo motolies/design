@@ -1,19 +1,28 @@
-# Java/Spring 개발자 면접 가이드
+# 직군별 면접 가이드
 
 ## 🎯 개요
 
-이 문서는 Java/Spring 개발자 채용 면접을 위한 체계적인 질문 가이드입니다.
-주니어와 시니어 개발자에게 적절한 수준의 질문을 제공하여 효율적인 면접 진행을 돕습니다.
+이 문서는 직군별 채용 면접을 위한 체계적인 질문 가이드입니다.
+**Java/Spring 개발자** 가이드를 기본으로 제공하며, **DevOps / SRE** 직군은 별도 폴더에 정리되어 있습니다.
+직군 안에서 주니어와 시니어 모두에게 적절한 수준의 질문을 제공하여 효율적인 면접 진행을 돕습니다.
 
 ---
 
 ## 📁 문서 구성
 
+### Java/Spring 개발자 직군
+
 | 문서 | 대상 | 설명 |
 |------|------|------|
-| [주니어 질문](./junior/README.md) | 0-3년차 | Spring 기초, JPA 기본, Java 핵심 개념 |
-| [시니어 질문](./senior/README.md) | 4년차 이상 | 심화 기술, 아키텍처, 리더십 |
+| [주니어 질문](./backend/junior/README.md) | 0-3년차 | Spring 기초, JPA 기본, Java 핵심 개념 |
+| [시니어 질문](./backend/senior/README.md) | 4년차 이상 | 심화 기술, 아키텍처, 리더십 |
 | [공통 질문](./common/README.md) | 전체 | 프로젝트 경험, 협업, AI 도구 활용 |
+
+### DevOps / SRE 직군
+
+| 문서 | 대상 | 설명 |
+|------|------|------|
+| [데브옵스 면접 가이드](./devops/README.md) | DevOps / SRE / 플랫폼 엔지니어 | 기본·심화·고려사항 3개 문서 — Linux·K8s·IaC·관측성·장애 대응·운영 문화 |
 
 ---
 
@@ -104,6 +113,13 @@
 
 ## 🔗 바로가기
 
-- [주니어 개발자 면접 질문](./junior/README.md)
-- [시니어 개발자 면접 질문](./senior/README.md)
+### Java/Spring 직군
+- [주니어 개발자 면접 질문](./backend/junior/README.md)
+- [시니어 개발자 면접 질문](./backend/senior/README.md)
 - [공통 면접 질문](./common/README.md)
+
+### DevOps / SRE 직군
+- [데브옵스 면접 가이드 인덱스](./devops/README.md)
+- [데브옵스 기본 질문](./devops/basic/README.md)
+- [데브옵스 심화 질문](./devops/advanced/README.md)
+- [데브옵스 고려사항 질문](./devops/considerations/README.md)
