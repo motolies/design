@@ -6,20 +6,20 @@
 
 | 목차 | 평가 역량 | 난이도 | 예상 시간 |
 |---|---|---|---|
-| [백엔드](backend/README.md) | Java/Spring·JPA·DB·분산 시스템 | 기본·심화 | 상황당 10~15 / 15~20분 |
-| [프론트엔드](frontend/README.md) | JS/CSS·React/Next.js·성능·운영 | 기본·심화·협업 | 상황당 10~15 / 15~20분 |
-| [DevOps / SRE](devops/README.md) | Linux·네트워크·Kubernetes·IaC·운영 판단 | 기본·심화·협업 | 상황당 10~15 / 15~20분 |
-| [공통](common/README.md) | 우선순위·리뷰·레거시·AI·기술 선택 | 기본·심화 | 상황당 10~15 / 15~20분 |
+| [백엔드](backend/README.md) | Java/Spring·JPA·DB·분산 시스템 | 기본·심화 | 상황당 10–15 / 15–20분 |
+| [프론트엔드](frontend/README.md) | JS/CSS·React/Next.js·성능·운영 | 기본·심화·협업 | 상황당 10–15 / 15–20분 |
+| [DevOps / SRE](devops/README.md) | Linux·네트워크·Kubernetes·IaC·운영 판단 | 기본·심화·협업 | 상황당 10–15 / 15–20분 |
+| [공통](common/README.md) | 우선순위·리뷰·레거시·AI·기술 선택 | 기본·심화 | 상황당 10–15 / 15–20분 |
 
 ## 진행 방법
 
 1. 직무에 맞는 상황 2개와 공통 상황 1개를 미리 고릅니다. 모든 분기를 질문하지 않습니다.
 2. 문서의 **2번 상황과 첫 질문**을 제시합니다. **2.1 상황 상세**는 지원자에게 그대로 읽어주거나 공유할 수 있는 설명입니다. 장면을 이해한 뒤 지원자의 답변과 확인 질문을 듣고, 원인이나 해결책을 암시하지 않습니다.
 3. **3번 면접관용 추가 정보**는 처음부터 읽어주지 않고 지원자의 확인 질문에 맞춰 제공합니다. 아직 정하지 않은 조건은 가정을 합의하고 기록합니다.
-4. 답변별 표에서 관련 분기 1~2개를 고릅니다. `→` 뒤 질문은 한 단계 깊게 확인할 때 사용합니다. 심화 조건은 기본 추론 뒤에만 추가합니다.
+4. 답변별 표에서 관련 분기 1–2개를 고릅니다. `→` 뒤 질문은 한 단계 깊게 확인할 때 사용합니다. 심화 조건은 기본 추론 뒤에만 추가합니다.
 5. 평가 기준에 관찰한 근거를 기록하고 실제 경험의 역할·행동·결과·회고로 연결합니다. 경험이 없으면 검증 계획이나 학습 경험으로 대신합니다.
 
-기본 경로는 10~15분, 심화 경로는 15~20분입니다. 심화 시간에는 기본 가설 확인이 포함되며 두 시간을 합산하지 않습니다. 간단한 도입 5분 → 기술 상황 2개 20~40분 → 공통 상황 10~15분 → 지원자 질문 5분으로 40~65분을 구성할 수 있습니다.
+기본 경로는 10–15분, 심화 경로는 15–20분입니다. 심화 시간에는 기본 가설 확인이 포함되며 두 시간을 합산하지 않습니다. 간단한 도입 5분 → 기술 상황 2개 20–40분 → 공통 상황 10–15분 → 지원자 질문 5분으로 40–65분을 구성할 수 있습니다.
 
 면접관용 답변은 가능한 예시입니다. 합의한 조건을 만족하는 다른 접근도 인정합니다. 막히면 조건 하나를 힌트로 제공하고 추론이 어떻게 변하는지 봅니다. 지원자마다 제공한 힌트와 조건 차이를 기록합니다.
 
@@ -49,13 +49,13 @@
 
 | 목적 | 추천 조합 | 예상 시간 |
 |---|---|---|
-| 백엔드 기본 | [쿠폰 상한 기본](backend/junior/coupon-over-issuance.md#basic) + [부분 저장 기본](backend/junior/partial-order-save.md#basic) + [리뷰](common/review-and-mentoring.md#basic) | 30~45분 |
-| 백엔드 심화 | [쿠폰 심화](backend/junior/coupon-over-issuance.md#deep) + [중복 이벤트 심화](backend/senior/duplicate-payment-events.md#deep) + [기술 선택](common/build-or-buy.md#basic) | 40~55분 |
-| 프론트엔드 기본 | [검색 역전](frontend/basic/search-result-race.md#basic) + [모바일·접근성](frontend/basic/mobile-dialog-layout.md#basic) + [일정과 품질](common/deadline-and-quality.md#basic) | 30~45분 |
-| 프론트엔드 심화 | [캐시 심화](frontend/advanced/stale-product-cache.md#deep) + [배포 오류 심화](frontend/advanced/white-screen-release.md#deep) + [패키지 운영](frontend/considerations/shared-package-release.md#basic) | 40~55분 |
-| DevOps 기본 | [자원 부족](devops/basic/resource-pressure.md#basic) + [배포 요청 실패](devops/basic/deployment-request-failures.md#basic) + [온콜](devops/considerations/on-call-ownership.md#basic) | 30~45분 |
-| DevOps 심화 | [스케일링 심화](devops/advanced/scaling-backlog.md#deep) + [IaC 복구 심화](devops/advanced/infrastructure-state-conflict.md#deep) + [비용 판단](devops/considerations/cost-and-change-budget.md#basic) | 40~55분 |
-| 설계·AI 활용 중심 | [직접 구현과 도입](common/build-or-buy.md#basic) + [AI 코드 검증](common/ai-generated-change-review.md#deep) + [LLM 품질](common/llm-feature-quality.md#basic) | 35~50분 |
+| 백엔드 기본 | [쿠폰 상한 기본](backend/junior/coupon-over-issuance.md#basic) + [부분 저장 기본](backend/junior/partial-order-save.md#basic) + [리뷰](common/review-and-mentoring.md#basic) | 30–45분 |
+| 백엔드 심화 | [쿠폰 심화](backend/junior/coupon-over-issuance.md#deep) + [중복 이벤트 심화](backend/senior/duplicate-payment-events.md#deep) + [기술 선택](common/build-or-buy.md#basic) | 40–55분 |
+| 프론트엔드 기본 | [검색 역전](frontend/basic/search-result-race.md#basic) + [모바일·접근성](frontend/basic/mobile-dialog-layout.md#basic) + [일정과 품질](common/deadline-and-quality.md#basic) | 30–45분 |
+| 프론트엔드 심화 | [캐시 심화](frontend/advanced/stale-product-cache.md#deep) + [배포 오류 심화](frontend/advanced/white-screen-release.md#deep) + [패키지 운영](frontend/considerations/shared-package-release.md#basic) | 40–55분 |
+| DevOps 기본 | [자원 부족](devops/basic/resource-pressure.md#basic) + [배포 요청 실패](devops/basic/deployment-request-failures.md#basic) + [온콜](devops/considerations/on-call-ownership.md#basic) | 30–45분 |
+| DevOps 심화 | [스케일링 심화](devops/advanced/scaling-backlog.md#deep) + [IaC 복구 심화](devops/advanced/infrastructure-state-conflict.md#deep) + [비용 판단](devops/considerations/cost-and-change-budget.md#basic) | 40–55분 |
+| 설계·AI 활용 중심 | [직접 구현과 도입](common/build-or-buy.md#basic) + [AI 코드 검증](common/ai-generated-change-review.md#deep) + [LLM 품질](common/llm-feature-quality.md#basic) | 35–50분 |
 
 ## 기술 기준과 유지보수
 
