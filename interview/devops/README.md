@@ -1,118 +1,28 @@
-# 데브옵스 면접 가이드
+# DevOps / SRE 상황형 면접 가이드
 
-## 🎯 개요
+[전체 진행 방법](../README.md) · [공통 상황](../common/README.md) · [평가 주제 대조표](../coverage.md)
 
-이 문서는 DevOps / SRE / 플랫폼 엔지니어 채용 면접을 위한 질문 가이드입니다.
-실무 기본기, 심화 운영 능력, 그리고 기술 외 협업·문화·자동화 가치관까지 단계적으로 검증할 수 있도록 구성되어 있습니다.
+난이도는 연차로 고정하지 않습니다. 기본 상황에서 사실 확인과 원리 설명을 듣고, 심화에서는 실패·부하·조직 제약을 추가합니다.
 
-기존 [Java/Spring 개발자 면접 가이드](../README.md)와 같은 작성 컨벤션(질문 → 의도 → 핵심 포인트 → 좋은 답변 예시 → 꼬리 질문)을 따르므로, 한 시리즈로 함께 활용할 수 있습니다.
+| 진입 목차 | 평가 역량 | 난이도 | 예상 시간 |
+|---|---|---|---|
+| [DevOps 기본](basic/README.md) | 해당 목차에서 상황별 역량 선택 | 기본·심화 선택 | 상황당 10~15 / 15~20분 |
+| [DevOps 심화](advanced/README.md) | 해당 목차에서 상황별 역량 선택 | 심화 | 상황당 15~20분 |
+| [DevOps 협업·운영](considerations/README.md) | 해당 목차에서 상황별 역량 선택 | 기본·심화 선택 | 상황당 10~15 / 15~20분 |
 
----
+## 바로 고를 상황
 
-## 📁 문서 구성
+| 상황 제목 | 평가 역량 | 난이도 | 예상 시간 |
+|---|---|---|---|
+| [서버 자원 경보와 재시작이 반복된다](basic/resource-pressure.md#basic) | Linux · 컨테이너 · 증거 기반 진단 | 기본 → [심화](basic/resource-pressure.md#deep) | 10~15 / 15~20분 |
+| [일부 지역에서만 사이트 연결이 느리거나 실패한다](basic/network-path-failure.md#basic) | DNS · TLS · 라우팅 · Kubernetes 네트워크 | 기본 → [심화](basic/network-path-failure.md#deep) | 10~15 / 15~20분 |
+| [배포 중 진행 중인 요청이 끊긴다](basic/deployment-request-failures.md#basic) | 배포 전략 · 프로세스 종료 · 롤백 | 기본 → [심화](basic/deployment-request-failures.md#deep) | 10~15 / 15~20분 |
+| [같은 배포 버전인데 환경별 동작이 다르다](basic/configuration-and-artifact-drift.md#basic) | CI/CD · 이미지 · 설정 · 공급망 | 기본 → [심화](basic/configuration-and-artifact-drift.md#deep) | 10~15 / 15~20분 |
+| [Pod를 늘려도 대기열과 지연이 줄지 않는다](advanced/scaling-backlog.md#basic) | 스케줄링 · 오토스케일링 · 부하 시험 | 기본 → [심화](advanced/scaling-backlog.md#deep) | 10~15 / 15~20분 |
+| [긴급 수정 뒤 IaC가 운영 자원을 되돌리려 한다](advanced/infrastructure-state-conflict.md#basic) | Terraform · GitOps · 변경 통제 | 기본 → [심화](advanced/infrastructure-state-conflict.md#deep) | 10~15 / 15~20분 |
+| [관측 비용은 늘었는데 사용자 장애를 놓친다](advanced/observability-cost-and-blind-spots.md#basic) | SLI/SLO · 메트릭 · 로그 · 트레이스 | 기본 → [심화](advanced/observability-cost-and-blind-spots.md#deep) | 10~15 / 15~20분 |
+| [멀티 AZ인데 한 영역 장애로 서비스가 멈춘다](advanced/zone-outage-recovery.md#basic) | 가용성 · 저장소 · 재해 복구 · 카오스 실험 | 기본 → [심화](advanced/zone-outage-recovery.md#deep) | 10~15 / 15~20분 |
+| [새벽 장애의 담당팀과 운영 권한이 불명확하다](considerations/on-call-ownership.md#basic) | 온콜 · 책임 경계 · 사고 소통 | 기본 → [심화](considerations/on-call-ownership.md#deep) | 10~15 / 15~20분 |
+| [비용 절감 요구와 배포 위험이 충돌한다](considerations/cost-and-change-budget.md#basic) | 비용 · 변경 관리 · 자동화 우선순위 | 기본 → [심화](considerations/cost-and-change-budget.md#deep) | 10~15 / 15~20분 |
 
-| 문서 | 대상 | 설명 |
-|------|------|------|
-| [기본 질문](./basic/README.md) | 0-3년차 / 인프라 전환자 | Linux, 네트워크, Git, Docker, K8s 기초, CI/CD 기본, 모니터링·배포 기초 |
-| [심화 질문](./advanced/README.md) | 4년차 이상 / Sr. DevOps · SRE | K8s 심화, IaC·GitOps, 관측성(SLO), 보안, 성능, 장애 대응 |
-| [고려사항 질문](./considerations/README.md) | 전체 | 협업, 온콜, FinOps, 문서화, Toil 관리, 변경 관리, AI 도구 활용 |
-
----
-
-## 💡 면접 팁: STAR 기법
-
-장애 대응·운영 경험을 묻는 질문은 **STAR 기법**으로 깊이를 끌어내는 것이 효과적입니다.
-
-| 단계 | 질문 예시 |
-|------|----------|
-| **S** (Situation) | "당시 어떤 시스템 상황이었나요? 트래픽 규모와 아키텍처는?" |
-| **T** (Task) | "본인은 그 사고에서 어떤 역할을 맡으셨나요?" |
-| **A** (Action) | "어떤 진단 순서로 접근했고, 어떤 임시 조치와 근본 해결을 했나요?" |
-| **R** (Result) | "복구까지 얼마나 걸렸고, 사후로 어떤 개선이 이루어졌나요?" |
-
-### 🔄 추가 꼬리 질문
-
-데브옵스 면접에서 특히 유효한 회고 질문:
-
-> "만약 다시 그 사고로 돌아간다면, 가장 빨리 했어야 했던 한 가지는 무엇인가요?"
-
-이 질문은 **사고 회고 능력**과 **운영 감각의 깊이**를 동시에 확인할 수 있습니다.
-
----
-
-## ⚖️ 평가 기준
-
-### 주니어 DevOps (0-3년차)
-
-| 평가 항목 | 기대 수준 |
-|----------|----------|
-| 기본 개념 이해 | Linux·네트워크·컨테이너·K8s 핵심 개념을 설명할 수 있음 |
-| 트러블슈팅 흐름 | CPU·메모리·디스크 등 흔한 문제의 진단 순서를 설명할 수 있음 |
-| 도구 활용 | `kubectl`, Docker, Git, CI/CD 도구 사용 경험 |
-| 학습 의지 | 처음 접하는 도구·이슈를 어떻게 학습해서 해결했는지 |
-
-### 시니어 DevOps / SRE (4년차 이상)
-
-| 평가 항목 | 기대 수준 |
-|----------|----------|
-| 심화 기술 이해 | K8s 내부 동작, IaC state 관리, 관측성 설계의 trade-off 이해 |
-| 장애 대응 | 실제 운영 장애를 진단·복구·회고한 경험과 학습 |
-| 아키텍처 설계 | 가용성·비용·운영 부담을 고려한 의사결정 능력 |
-| 자동화 가치관 | 무엇을 자동화하고 무엇은 수동으로 두는지에 대한 판단 기준 |
-| 협업·리더십 | 개발팀과의 책임 경계, 온콜 문화, 셀프서비스 플랫폼 운영 경험 |
-
----
-
-## 📋 면접 진행 순서 (권장)
-
-### 1단계: 아이스브레이킹 (5분)
-- 자기소개
-- 최근 다룬 인프라/도구 중 인상 깊었던 것
-
-### 2단계: 기본 기술 질문 (20-30분)
-- Linux·네트워크·컨테이너·K8s 기초
-- 운영 트러블슈팅 흐름 ("CPU 100% 알람 어떻게 진단하나요?")
-
-### 3단계: 심화 기술 / 장애 대응 (20-30분)
-- **주니어**: 기본 + 실무 적용 경험
-- **시니어**: K8s 심화 → IaC → 관측성 → 장애 대응 STAR
-
-### 4단계: 협업 / 운영 문화 (15-20분)
-- 개발팀과의 책임 경계
-- 온콜·알람 피로
-- 비용 의사결정
-- 문서화·자동화 가치관
-
-### 5단계: AI 도구 활용 (10분, 선택)
-- IaC·매니페스트·Runbook에서의 AI 활용
-- 보안·검증·라이선스 의식
-
-### 6단계: Q&A (5-10분)
-- 지원자 질문
-
----
-
-## 🎯 효과적인 면접을 위한 팁
-
-### ✅ Do
-
-- 답변 후 **"왜 그렇게 결정하셨나요?"** 꼬리 질문
-- **구체적인 장애 경험**을 STAR로 풀어 들어보기
-- "이상적인 K8s 답변"보다 **실제로 운영해본 흔적**을 우선 평가
-- 모르는 영역에 대해 어떻게 **학습·검증**해 가는지 확인
-
-### ❌ Don't
-
-- 특정 클라우드 벤더 서비스 이름을 외우는지만 검증
-- "Best Practice" 정답을 강요 (실제로는 trade-off가 있음)
-- 한 사람이 모든 영역(K8s·보안·DB·네트워크)을 깊이 알 거라는 기대
-- 도구 이름 나열형 답변(예: "Prometheus, Grafana, Loki, Tempo")만으로 점수를 줌
-
----
-
-## 🔗 바로가기
-
-- [기본 질문](./basic/README.md)
-- [심화 질문](./advanced/README.md)
-- [고려사항 질문](./considerations/README.md)
-- [전체 인터뷰 인덱스](../README.md)
+공통 진행 기준은 최상위 목차를 따릅니다. 인터뷰 중에는 해설을 읽어주지 말고 지원자의 질문에 맞춰 추가 정보를 공개하세요.

@@ -1,0 +1,80 @@
+# 배포 중 진행 중인 요청이 끊긴다
+
+[이 폴더 목차](README.md) · [전체 진행 방법](../../README.md)
+
+## 1. 빠른 안내
+
+| 평가 역량 | 난이도 | 예상 시간 |
+|---|---|---|
+| 배포 전략 · 프로세스 종료 · 롤백 | 기본 → 심화 | 기본 10~15분 / 심화 15~20분 |
+
+<a id="basic"></a>
+
+**기본 진행**: 상황과 첫 질문 → 확인 질문에 맞춰 추가 정보 제공 → 답변에 맞는 분기 1~2개 → 평가·경험 연결. 답변을 먼저 듣고 해설은 읽어주지 않습니다.
+
+**심화 진행**: 같은 상황에서 기본 가설을 짧게 확인한 뒤 아래 심화 조건과 표의 `→` 뒤 질문을 선택합니다. 예상 시간은 기본과 심화를 합산한 시간이 아니라 각 진행 경로의 시간입니다. 모든 분기를 묻지 않습니다.
+
+## 2. 지원자에게 읽어줄 상황과 첫 질문
+
+> 평소에는 정상인데 배포할 때만 요청 실패가 늘어납니다. 팀은 무중단 배포 설정이 되어 있다고 말합니다. 무엇을 확인하고 다음 배포의 성공 기준을 정하겠습니까?
+
+## 3. 면접관용 추가 정보
+
+Kubernetes Deployment로 3개 Pod를 rolling update합니다. 요청 중 일부는 40초 걸립니다. termination grace는 30초이며 앱 앞에 LB가 있습니다. Java 앱은 Spring Boot 3.5.7입니다.
+
+정보가 없는 질문에는 정답을 추측해 주지 말고 지원자의 가정을 명시하게 합니다. 같은 면접에서는 합의한 조건을 유지합니다.
+
+<a id="deep"></a>
+
+**심화에서 추가할 조건**: WebSocket·대용량 업로드와 DB 스키마 변경이 포함됩니다. 신규 버전 일부 트래픽만 검증하고 싶지만 여유 자원은 적습니다.
+
+## 4. 기본 답변 예시와 해설
+
+실패 요청이 시작·종료·준비 상태 중 어느 시점과 겹치는지 확인합니다. 새 Pod readiness와 시작 시간, 기존 Pod의 endpoint 전파·drain·SIGTERM 전달·처리 완료를 관찰합니다. 유예 시간에는 preStop 시간도 포함되므로 앱과 LB의 종료 예산을 맞춥니다. rolling/blue-green/canary를 자원·호환성·검증 기준으로 비교하고 배포 중 지속 요청으로 오류율과 누락·중복을 검증합니다.
+
+이는 가능한 접근의 예입니다. 다른 해법도 조건·선택 이유·실패 한계·검증이 연결되면 인정합니다.
+
+<details>
+<summary>면접관 보충 해설</summary>
+
+Boot 3.5.7 기준으로 spring.lifecycle.timeout-per-shutdown-phase와 server.shutdown 설정을 확인합니다. 컨테이너 grace는 앱의 종료 단계와 drain을 담아야 합니다. 오래 걸리는 요청은 무한히 기다리기보다 제한 시간·재연결·재개 정책을 사용자 계약으로 정합니다.
+
+PID 1에서 cron도 실행한다는 답변에는 배치 수명·로그·실패·재시도 책임을 따로 묻습니다. CronJob으로 분리하면 concurrencyPolicy: Forbid가 같은 CronJob의 겹친 실행을 제한하지만 다른 CronJob이나 애플리케이션 전체의 중복 처리를 막지는 않습니다. 배치 자체의 멱등성도 검증합니다.
+
+rolling은 구/신 버전 공존, blue-green은 환경 전환과 추가 용량, canary는 일부 트래픽 분석이 핵심입니다. Argo Rollouts/Flagger 분석을 사용한다면 실패 메트릭·표본·자동 중단 이유를 보존하고, CI 병렬 테스트와 의존성·이미지 layer 캐시를 도입해도 검증 누락이나 오래된 산출물 재사용이 없는지 묻습니다.
+
+</details>
+
+기술 확인 출처: [Kubernetes Pod 종료](https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/), [Boot 3.5 graceful shutdown](https://docs.spring.io/spring-boot/3.5/reference/web/graceful-shutdown.html)
+
+추가 기술 확인 출처: [Boot 3.5.7 종료 기본값](https://github.com/spring-projects/spring-boot/blob/v3.5.7/spring-boot-project/spring-boot-docs/src/docs/antora/modules/reference/pages/web/graceful-shutdown.adoc), [CronJob 중복 실행 범위](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+
+## 5. 답변별 꼬리 질문
+
+`→` 뒤는 앞 질문에 답했을 때 이어갈 한 단계 깊은 질문입니다. 모르는 답변에는 추가 조건을 하나 주고 추론이 어떻게 바뀌는지 확인합니다.
+
+| 지원자 답변 또는 접근 | 다음 질문 | 확인할 핵심과 판단 근거 |
+|---|---|---|
+| preStop sleep을 넣습니다 | sleep이 readiness를 직접 끄나요? → 전파가 더 느리면요? | 종료 처리와 endpoint 갱신은 병행될 수 있다. sleep 자체는 준비 상태 변경 보장이 아니며 관측과 drain 설계가 필요하다. |
+| graceful shutdown을 켭니다 | PID 1이 SIGTERM을 전달하나요? → SIGKILL 때 정리 코드는요? | exec/init의 신호 전달과 자식 reap, graceful 예산을 설명한다. Boot 3.5에서는 기본 활성화 여부와 실제 설정을 확인한다. |
+| probe를 강화합니다 | readiness 실패와 liveness 실패의 결과는요? → 시작이 오래 걸리면요? | 트래픽 제외와 재시작을 구분하고 startup probe를 사용한다. 의존 DB 장애를 liveness로 연결해 재시작 폭풍을 만들지 않는다. |
+| rollout undo합니다 | 스키마와 데이터도 되돌아가나요? → 삭제한 컬럼을 구버전이 읽으면요? | expand-contract와 구/신 버전 공존 기간을 설계한다. Deployment/ReplicaSet 이력과 GitOps 원본 복구를 구분한다. |
+| canary로 전환합니다 | 표본이 적으면 무엇으로 승격하나요? → maxSurge/maxUnavailable과 자원은요? | 오류·지연·업무 지표·관찰 시간·중단 기준을 명시한다. 긴 연결은 재연결·이어하기를 별도로 설계한다. |
+
+## 6. 평가 기준
+
+| 구분 | 관찰할 행동과 설명 |
+|---|---|
+| 기본 이해 | 요청 시간과 종료·배포 타임라인을 연결한다. |
+| 깊이 있는 이해 | 신호·endpoint 전파·DB 호환·긴 연결까지 실패를 검증한다. |
+| 추가 확인 필요 | sleep이나 replica 수 하나로 무중단을 보장한다고 한다. |
+
+기술명 언급 수로 점수를 매기지 않습니다. 답변에서 관찰한 근거, 제공한 힌트, 남은 불확실성을 따로 적습니다. 질문하지 않은 역량은 미평가로 남깁니다.
+
+## 7. 실제 경험으로 연결
+
+- 이 상황과 비슷한 경험에서 제약과 본인의 역할은 무엇이었습니까?
+- 직접 내린 결정·수행한 검증과 동료의 기여를 구분해 설명해 주세요.
+- 결과를 어떤 수치나 관찰로 확인했으며, 다시 한다면 무엇을 바꾸겠습니까?
+
+직접 경험이 없으면 유사한 학습·실험 경험 또는 이 상황의 검증 계획으로 이어갑니다.
