@@ -19,6 +19,7 @@ Java는 JDK 21, Spring은 **Spring Boot 3.5.7**을 기준으로 합니다. 4.1�
 | [주문 실패 뒤 일부 데이터만 남는다](junior/partial-order-save.md#basic) | Spring AOP · 트랜잭션 · 예외 · 테스트 | 기본 → [심화](junior/partial-order-save.md#deep) | 10–15 / 15–20분 |
 | [로그인했는데 다른 사용자의 주문이 보인다](junior/access-denied-after-login.md#basic) | 요청 흐름 · 인증과 인가 · 웹 보안 | 기본 → [심화](junior/access-denied-after-login.md#deep) | 10–15 / 15–20분 |
 | [설정 변경 후 애플리케이션이 기동하지 않는다](junior/application-startup-conflict.md#basic) | DI · 자동 구성 · Bean 생명주기 | 기본 → [심화](junior/application-startup-conflict.md#deep) | 10–15 / 15–20분 |
+| [하나의 택배사를 사용하던 시스템에 새 배송사를 추가해야 한다](junior/shipping-carrier-extension.md#basic) | 책임 분리 · 디자인 패턴 · 확장성 · 회귀 검증 | 기본 → [심화](junior/shipping-carrier-extension.md#deep) | 10–15 / 15–20분 |
 | [주문 항목 수정과 삭제 결과가 예상과 다르다](junior/order-model-integrity.md#basic) | JPA 매핑 · 동일성 · 컬렉션 · 데이터 모델 | 기본 → [심화](junior/order-model-integrity.md#deep) | 10–15 / 15–20분 |
 | [주문 목록 조회가 데이터 증가 후 느려진다](senior/order-query-regression.md#basic) | JPA 조회 · 캐시 · 부하 분석 | 기본 → [심화](senior/order-query-regression.md#deep) | 10–15 / 15–20분 |
 | [장시간 운영한 JVM의 지연과 메모리 사용이 늘어난다](senior/jvm-latency-and-upgrade.md#basic) | JVM · GC · JDK 이전 · 동시 실행 | 기본 → [심화](senior/jvm-latency-and-upgrade.md#deep) | 10–15 / 15–20분 |
